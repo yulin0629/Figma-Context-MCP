@@ -1,34 +1,60 @@
 # Figma MCP Server
 
-A Model Context Protocol server that connects to Figma and provides functions for accessing Figma files and nodes within the file.
+A [Model Context Protocol](https://modelcontextprotocol.io/introduction) server that connects to Figma and provides functions for accessing full Figma files as well as specific frames or groups within the file.
 
-## Prerequisites
+This MCP server is specifically designed for use with [Cursor](https://cursor.sh/). Before responding with context from the [Figma API](https://www.figma.com/developers/api), it simplifies and translates the response so only the most relevant layout and styling information is provided to the model.
 
-- Node.js v20.17.0
-- PNPM package manager
-- Figma API access token
+Reducing the amount of context provided to the model helps make the AI more accurate and the responses more relevant.
 
 ## Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Install dependencies with `pnpm install`
+3. Copy `.env.example` to `.env` and fill in your [Figma API access token](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens). Only read access is required.
 
-```bash
-pnpm install
-```
-
-3. Copy `.env.example` to `.env` and fill in your Figma API access token:
-
-```bash
-cp .env.example .env
-```
-
-## Development
+## Connecting to Cursor
 
 Start the development server:
 
 ```bash
-pnpm dev
+> pnpm dev
+# Initializing Figma MCP Server in HTTP mode on port 3333...
+# HTTP server listening on port 3333
+# SSE endpoint available at http://localhost:3333/sse
+# Message endpoint available at http://localhost:3333/messages
+```
+
+Once the server is running, [connect Cursor to the MCP server](https://docs.cursor.com/context/model-context-protocol) in Cursor's settings, under the features tab.
+
+![Connecting to MCP server in Cursor](./docs/cursor-MCP-settings.png)
+
+After the server has been connected, you can confirm Cursor's has a valid connection before getting started. If you get a green dot and the tools show up, you're good to go!
+
+![Confirming connection in Cursor](./docs/verify-connection.png)
+
+Once the MCP server is connected, **you can start using the tools in Cursor's composer, as long as the composer is in agent mode.**
+
+Dropping a link to a Figma file in the composer and asking Cursor to do something with it should automatically trigger the `get-file` tool.
+
+Most Figma files end up being huge, so you'll probably want to link to a specific frame or group within the file. With a single element selected, you can hit `CMD + L` to copy the link to the element. You can also find it in the context menu:
+
+![Copy link to Figma selection by right clicking](./docs/figma-copy-link.png)
+
+Once you have a link to a specific element, you can drop it in the composer and ask Cursor to do something with it.
+
+## Inspect Responses
+
+To inspect responses from the MCP server more easily, you can run the `inspect` command, which launches the `@modelcontextprotocol/inspector` web UI for triggering tool calls and reviewing responses:
+
+```bash
+pnpm inspect
+# > figma-mcp@0.1.0 inspect
+# > pnpx @modelcontextprotocol/inspector
+#
+# Starting MCP inspector...
+# Proxy server listening on port 3000
+#
+# 🔍 MCP Inspector is up and running at http://localhost:5173 🚀
 ```
 
 ## Available Tools
@@ -62,7 +88,3 @@ Parameters:
 - `pnpm lint` - Run ESLint
 - `pnpm format` - Format code with Prettier
 - `pnpm test` - Run tests
-
-## License
-
-MIT
