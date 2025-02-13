@@ -23,7 +23,7 @@ Reducing the amount of context provided to the model helps make the AI more accu
 
 ## Connecting to Cursor
 
-Start the development server:
+### Start the development server
 
 ```bash
 > pnpm dev
@@ -33,6 +33,8 @@ Start the development server:
 # Message endpoint available at http://localhost:3333/messages
 ```
 
+### Connect Cursor to the MCP server
+
 Once the server is running, [connect Cursor to the MCP server](https://docs.cursor.com/context/model-context-protocol) in Cursor's settings, under the features tab.
 
 ![Connecting to MCP server in Cursor](./docs/cursor-MCP-settings.png)
@@ -40,6 +42,8 @@ Once the server is running, [connect Cursor to the MCP server](https://docs.curs
 After the server has been connected, you can confirm Cursor's has a valid connection before getting started. If you get a green dot and the tools show up, you're good to go!
 
 ![Confirming connection in Cursor](./docs/verify-connection.png)
+
+### Start using Composer with your Figma designs
 
 Once the MCP server is connected, **you can start using the tools in Cursor's composer, as long as the composer is in agent mode.**
 
