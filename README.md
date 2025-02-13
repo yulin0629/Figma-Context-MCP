@@ -4,6 +4,11 @@ Give [Cursor](https://cursor.sh/) access to your Figma files with this [Model Co
 
 When Cursor has access to Figma design data, it's **way** better at one-shotting designs accurately than alternative approaches like pasting screenshots.
 
+## Demo Video
+
+[Watch a demo of building a UI in Cursor with Figma design data](https://youtu.be/6G9yb-LrEqg)
+[![Watch the video](https://img.youtube.com/vi/6G9yb-LrEqg/maxresdefault.jpg)](https://youtu.be/6G9yb-LrEqg)
+
 <a href="https://glama.ai/mcp/servers/kcftotr525"><img width="380" height="200" src="https://glama.ai/mcp/servers/kcftotr525/badge" alt="Figma Server MCP server" /></a>
 
 ## How it works
@@ -93,13 +98,3 @@ Parameters:
 
 - `fileKey` (string): The key of the Figma file containing the node
 - `nodeId` (string): The ID of the node to fetch
-- `depth` (number, optional): How many levels deep to traverse the node tree
-
-## Scripts
-
-- `pnpm build` - Build the project
-- `pnpm start` - Start the production server
-- `pnpm dev` - Start the development server
-- `pnpm lint` - Run ESLint
-- `pnpm format` - Format code with Prettier
-- `pnpm test` - Run tests
