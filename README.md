@@ -1,8 +1,17 @@
 # Figma MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io/introduction) server that connects to Figma and provides functions for accessing full Figma files as well as specific frames or groups within the file.
+Give [Cursor](https://cursor.sh/) access to your Figma files with this [Model Context Protocol](https://modelcontextprotocol.io/introduction) server.
 
-This MCP server is specifically designed for use with [Cursor](https://cursor.sh/). Before responding with context from the [Figma API](https://www.figma.com/developers/api), it simplifies and translates the response so only the most relevant layout and styling information is provided to the model.
+When Cursor has access to Figma design data, it's **way** better at one-shotting designs accurately than alternative approaches like pasting screenshots.
+
+## How it works
+
+1. Open Cursor's composer in agent mode.
+1. Paste a link to a Figma file, frame, or group.
+1. Ask Cursor to do something with the Figma file—e.g. implement a design.
+1. Cursor will fetch the relevant metadata from Figma and use it to write your code.
+
+This MCP server is specifically designed for use with Cursor. Before responding with context from the [Figma API](https://www.figma.com/developers/api), it simplifies and translates the response so only the most relevant layout and styling information is provided to the model.
 
 Reducing the amount of context provided to the model helps make the AI more accurate and the responses more relevant.
 
