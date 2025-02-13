@@ -4,6 +4,8 @@ Give [Cursor](https://cursor.sh/) access to your Figma files with this [Model Co
 
 When Cursor has access to Figma design data, it's **way** better at one-shotting designs accurately than alternative approaches like pasting screenshots.
 
+<a href="https://glama.ai/mcp/servers/kcftotr525"><img width="380" height="200" src="https://glama.ai/mcp/servers/kcftotr525/badge" alt="Figma Server MCP server" /></a>
+
 ## How it works
 
 1. Open Cursor's composer in agent mode.
