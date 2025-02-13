@@ -11,9 +11,27 @@ export interface FigmaAPIResponse {
     string,
     {
       document: FigmaDocumentNode;
-      // ignoring sub-objects like components, styles, etc.
+      components?: Record<string, RawComponent>;
+      componentSets?: Record<string, RawComponentSet>;
+      // ignoring other sub-objects or styles if not needed
     }
   >;
+}
+
+// Additional raw structures for component metadata
+export interface RawComponent {
+  key: string;
+  name: string;
+  description: string;
+  remote: boolean;
+  componentSetId?: string;
+  documentationLinks?: unknown[]; // Figma sometimes returns arrays
+}
+export interface RawComponentSet {
+  key: string;
+  name: string;
+  description: string;
+  remote: boolean;
 }
 
 export interface FigmaDocumentNode {
@@ -21,24 +39,54 @@ export interface FigmaDocumentNode {
   name: string;
   type: string;
   children?: FigmaDocumentNode[];
+  // Layout & size
+  absoluteBoundingBox?: RawBoundingBox;
+  absoluteRenderBounds?: RawBoundingBox;
+  layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL";
+  primaryAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
+  counterAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
+  primaryAxisSizingMode?: "FIXED" | "AUTO";
+  counterAxisSizingMode?: "FIXED" | "AUTO";
+  itemSpacing?: number;
+  layoutWrap?: "NO_WRAP" | "WRAP";
+  layoutSizingHorizontal?: "FIXED" | "FILL" | "HUG";
+  layoutSizingVertical?: "FIXED" | "FILL" | "HUG";
+  paddingTop?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  paddingRight?: number;
+  // Style & appearance
   fills?: RawPaint[];
   strokes?: RawPaint[];
-  absoluteBoundingBox?: RawBoundingBox;
+  strokeWeight?: number;
+  cornerRadius?: number;
+  cornerSmoothing?: number;
+  individualStrokeWeights?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  backgroundColor?: RawColor;
+  background?: RawPaint[];
+  // Text
   characters?: string;
   style?: RawTextStyle;
-  layoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL'; // from Figma
-  itemSpacing?: number;
-  layoutWrap?: 'NO_WRAP' | 'WRAP';
-  counterAxisSizingMode?: 'FIXED' | 'AUTO';
-  // plus any other layout-related fields in Figma
+  // Components/instances
+  componentId?: string;
+  componentProperties?: Record<string, RawComponentProperty>;
+  overrides?: RawOverride[];
+  // etc.
 }
 
 export interface RawPaint {
-  type: 'SOLID' | 'IMAGE' | 'VARIABLE_ALIAS' | string;
+  type: "SOLID" | "IMAGE" | "VARIABLE_ALIAS" | string;
   color?: RawColor;
   blendMode?: string;
   imageRef?: string;
-  // ignoring boundVariables
+  scaleMode?: "FILL" | "FIT" | "CROP" | "TILE" | "STRETCH" | string;
+  imageTransform?: number[][];
+  // ignoring boundVariables, because we want to skip them
 }
 
 export interface RawColor {
@@ -48,6 +96,19 @@ export interface RawColor {
   a: number;
 }
 
+export interface RawTextStyle {
+  fontFamily?: string;
+  fontPostScriptName?: string;
+  fontWeight?: number;
+  fontSize?: number;
+  lineHeightPx?: number;
+  letterSpacing?: number;
+  textCase?: string;
+  textAlignHorizontal?: string;
+  textAlignVertical?: string;
+  // etc.
+}
+
 export interface RawBoundingBox {
   x: number;
   y: number;
@@ -55,12 +116,13 @@ export interface RawBoundingBox {
   height: number;
 }
 
-export interface RawTextStyle {
-  fontFamily?: string;
-  fontWeight?: number;
-  fontSize?: number;
-  lineHeightPx?: number;
-  lineHeightPercent?: number;
-  letterSpacing?: number;
-  // ignoring everything else
+export interface RawComponentProperty {
+  value: string;
+  type: string; // e.g. "TEXT", "VARIANT", etc.
+}
+
+export interface RawOverride {
+  id: string;
+  overriddenFields: string[];
+  // possibly more
 }

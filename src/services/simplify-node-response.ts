@@ -1,62 +1,121 @@
-import { FigmaAPIResponse, FigmaDocumentNode, RawColor, RawPaint } from '../types/figma';
+import { FigmaAPIResponse, FigmaDocumentNode, RawColor, RawPaint } from "../types/figma";
 
-// This is the simplified representation we want to produce.
+// types.ts
+
+// -------------------- SIMPLIFIED STRUCTURES --------------------
+
 export interface SimplifiedDesign {
   name: string;
   lastModified: string;
   thumbnailUrl: string;
+  // If we want to preserve components data, we can stash it
   nodes: SimplifiedNode[];
+  components?: Record<string, SimplifiedComponent>;
+  componentSets?: Record<string, SimplifiedComponentSet>;
+}
+
+export interface SimplifiedComponent {
+  key: string;
+  name: string;
+  description: string;
+  // etc. Expand as needed
+}
+
+export interface SimplifiedComponentSet {
+  key: string;
+  name: string;
+  description: string;
+  // etc. Expand as needed
 }
 
 export interface SimplifiedNode {
   id: string;
   name: string;
-  type: string;
-  boundingBox?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  text?: string; // for TEXT nodes
+  type: string; // e.g. FRAME, TEXT, INSTANCE, RECTANGLE, etc.
+
+  // geometry
+  boundingBox?: BoundingBox;
+  // text
+  text?: string;
+  textStyle?: Partial<{
+    fontFamily: string;
+    fontWeight: number;
+    fontSize: number;
+    lineHeight: string;
+    letterSpacing: string;
+    textCase: string;
+    textAlignHorizontal: string;
+    textAlignVertical: string;
+  }>;
+  // appearance
   fills?: SimplifiedFill[];
   strokes?: SimplifiedFill[];
-  style?: {
-    fontFamily?: string;
-    fontWeight?: number;
-    fontSize?: number;
-    lineHeightPercent?: string;
-    letterSpacing?: string;
+  cornerRadius?: number;
+  cornerSmoothing?: number;
+  // layout & alignment
+  layout?: SimplifiedLayout;
+  // for frames, rectangles, images, etc.
+  backgroundColor?: ColorValue;
+  // for rect-specific strokes, etc.
+  strokeWeight?: number;
+  individualStrokeWeights?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
   };
-  layout?: {
-    // A simplified "flex" layout interpretation
-    flexDirection?: 'row' | 'column';
-    wrap?: boolean;
-    gap?: number; // from itemSpacing
-    // Keep raw Figma layout info if you want
-    figmaLayoutMode?: 'NONE' | 'HORIZONTAL' | 'VERTICAL';
-    figmaLayoutWrap?: 'NO_WRAP' | 'WRAP';
-    figmaCounterAxisSizingMode?: 'FIXED' | 'AUTO';
-  };
+  // children
   children?: SimplifiedNode[];
 }
 
-// We condense Paint objects here, ignoring boundVariables:
-export interface SimplifiedFill {
-  type: 'SOLID' | 'IMAGE';
-  hex?: string; // e.g. "#FF00AA"
-  opacity?: number; // derived from alpha
-  imageRef?: string; // if type === 'IMAGE'
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-// parser.ts
+// We convert RGBA to hex plus alpha. Also store image transform info
+export interface SimplifiedFill {
+  type: "SOLID" | "IMAGE";
+  hex?: string;
+  opacity?: number;
+  imageRef?: string;
+  scaleMode?: string;
+}
+
+export interface ColorValue {
+  hex: string;
+  opacity: number;
+}
+
+// We interpret some Figma properties as “flex” or “grid” or a custom layout.
+export interface SimplifiedLayout {
+  mode: "none" | "horizontal" | "vertical";
+  justifyContent?: "flex-start" | "flex-end" | "center" | "space-between";
+  alignItems?: "flex-start" | "flex-end" | "center" | "space-between";
+  wrap?: boolean;
+  gap?: number;
+  padding?: {
+    top: string;
+    right: string;
+    bottom: string;
+    left: string;
+  };
+  // we can also record if width is fixed vs. fill
+  sizing?: {
+    horizontal?: "fixed" | "fill" | "hug";
+    vertical?: "fixed" | "fill" | "hug";
+  };
+}
+
+// ---------------------- PARSING ----------------------
+
 export function parseFigmaResponse(data: FigmaAPIResponse): SimplifiedDesign {
   const { name, lastModified, thumbnailUrl, nodes } = data;
-  // The top-level "nodes" can contain multiple root documents keyed by ID.
-  // We'll parse them all and flatten into an array.
-  const simplifiedNodes: SimplifiedNode[] = Object.values(nodes).map((nodeObj) =>
-    parseNode(nodeObj.document),
-  );
+
+  // Potentially gather all top-level nodes into an array
+  const simplifiedNodes: SimplifiedNode[] = Object.values(nodes).map((n) => parseNode(n.document));
 
   return {
     name,
@@ -74,16 +133,30 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
     children,
     absoluteBoundingBox,
     characters,
+    style,
     fills,
     strokes,
-    style,
+    strokeWeight,
+    individualStrokeWeights,
+    cornerRadius,
+    cornerSmoothing,
+    backgroundColor,
     layoutMode,
-    itemSpacing,
-    layoutWrap,
+    primaryAxisAlignItems,
+    counterAxisAlignItems,
+    primaryAxisSizingMode,
     counterAxisSizingMode,
+    layoutWrap,
+    itemSpacing,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    paddingTop,
+    paddingBottom,
+    paddingLeft,
+    paddingRight,
   } = node;
 
-  const simplifiedNode: SimplifiedNode = {
+  const simplified: SimplifiedNode = {
     id,
     name,
     type,
@@ -91,7 +164,7 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
 
   // bounding box
   if (absoluteBoundingBox) {
-    simplifiedNode.boundingBox = {
+    simplified.boundingBox = {
       x: absoluteBoundingBox.x,
       y: absoluteBoundingBox.y,
       width: absoluteBoundingBox.width,
@@ -101,89 +174,207 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
 
   // text
   if (characters) {
-    simplifiedNode.text = characters;
+    simplified.text = characters;
   }
-
-  // fills
-  if (fills) {
-    simplifiedNode.fills = fills
-      .filter((f) => f.type === 'SOLID' || f.type === 'IMAGE')
-      .map(parsePaint);
-  }
-
-  // strokes
-  if (strokes) {
-    simplifiedNode.strokes = strokes
-      .filter((s) => s.type === 'SOLID' || s.type === 'IMAGE')
-      .map(parsePaint);
-  }
-
-  // style
   if (style) {
-    simplifiedNode.style = {
+    simplified.textStyle = {
       fontFamily: style.fontFamily,
       fontWeight: style.fontWeight,
       fontSize: style.fontSize,
-      lineHeightPercent: style.lineHeightPercent ? `${style.lineHeightPercent / 100}%` : undefined,
-      letterSpacing:
-        typeof style.letterSpacing === 'number' && style.fontSize
-          ? `${style.letterSpacing / style.fontSize}%`
+      lineHeight:
+        style.lineHeightPx && style.fontSize
+          ? `${style.lineHeightPx / style.fontSize}em`
           : undefined,
+      letterSpacing:
+        style.letterSpacing && style.letterSpacing !== 0 && style.fontSize
+          ? `${(style.letterSpacing / style.fontSize) * 100}%`
+          : undefined,
+      textCase: style.textCase,
+      textAlignHorizontal: style.textAlignHorizontal,
+      textAlignVertical: style.textAlignVertical,
     };
   }
 
-  // layout info: layoutMode, itemSpacing, etc.
-  if (layoutMode && layoutMode !== 'NONE') {
-    simplifiedNode.layout = {
-      figmaLayoutMode: layoutMode,
-      figmaLayoutWrap: layoutWrap,
-      figmaCounterAxisSizingMode: counterAxisSizingMode,
-      // interpret figma layout as "flex"
-      flexDirection: layoutMode === 'HORIZONTAL' ? 'row' : 'column',
-      wrap: layoutWrap === 'WRAP',
-      gap: itemSpacing ?? 0,
+  // fills & strokes
+  if (fills?.length) {
+    simplified.fills = fills
+      .filter((f) => f.type === "SOLID" || f.type === "IMAGE")
+      .map(parsePaint);
+  }
+  if (strokes?.length) {
+    simplified.strokes = strokes
+      .filter((s) => s.type === "SOLID" || s.type === "IMAGE")
+      .map(parsePaint);
+  }
+
+  // border/corner
+  if (typeof strokeWeight === "number" && simplified.strokes?.length) {
+    simplified.strokeWeight = strokeWeight;
+  }
+  if (individualStrokeWeights) {
+    simplified.individualStrokeWeights = {
+      top: individualStrokeWeights.top,
+      right: individualStrokeWeights.right,
+      bottom: individualStrokeWeights.bottom,
+      left: individualStrokeWeights.left,
     };
   }
+  if (typeof cornerRadius === "number") {
+    simplified.cornerRadius = cornerRadius;
+  }
+  if (typeof cornerSmoothing === "number") {
+    simplified.cornerSmoothing = cornerSmoothing;
+  }
+
+  // background color
+  if (backgroundColor) {
+    simplified.backgroundColor = convertColor(backgroundColor);
+  }
+
+  // layout data
+  simplified.layout = buildSimplifiedLayout({
+    layoutMode,
+    primaryAxisAlignItems,
+    counterAxisAlignItems,
+    layoutWrap,
+    itemSpacing,
+    primaryAxisSizingMode,
+    counterAxisSizingMode,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    paddingTop,
+    paddingBottom,
+    paddingLeft,
+    paddingRight,
+  });
 
   // children
   if (children && children.length > 0) {
-    simplifiedNode.children = children.map(parseNode);
+    simplified.children = children.map(parseNode);
   }
 
-  return simplifiedNode;
+  return simplified;
 }
 
 function parsePaint(raw: RawPaint): SimplifiedFill {
-  if (raw.type === 'IMAGE') {
+  if (raw.type === "IMAGE") {
     return {
-      type: 'IMAGE',
+      type: "IMAGE",
       imageRef: raw.imageRef,
+      scaleMode: raw.scaleMode,
     };
   }
-  // else it’s a SOLID (or treat as SOLID):
-  let hex;
-  let opacity;
-  if (raw.color) {
-    const { hex: colorHex, alpha } = convertColor(raw.color);
-    hex = colorHex;
-    opacity = alpha;
-  }
+  // treat as SOLID
+  const { hex, opacity } = convertColor(raw.color!);
   return {
-    type: 'SOLID',
+    type: "SOLID",
     hex,
     opacity,
   };
 }
 
-// Convert color to { hex, alpha }
-function convertColor(color: RawColor): { hex: string; alpha: number } {
+// Convert color from RGBA to { hex, opacity }
+function convertColor(color: RawColor): ColorValue {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
   const alpha = color.a;
 
-  // zero-pad the hex digits
-  const hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+  const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
 
-  return { hex, alpha };
+  return { hex, opacity: alpha };
+}
+
+// Convert Figma’s layout config into a more typical flex-like schema
+interface BuildLayoutParams {
+  layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL";
+  primaryAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
+  counterAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
+  layoutWrap?: "NO_WRAP" | "WRAP";
+  itemSpacing?: number;
+  primaryAxisSizingMode?: "FIXED" | "AUTO";
+  counterAxisSizingMode?: "FIXED" | "AUTO";
+  layoutSizingHorizontal?: "FIXED" | "FILL" | "HUG";
+  layoutSizingVertical?: "FIXED" | "FILL" | "HUG";
+  paddingTop?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  paddingRight?: number;
+}
+
+function buildSimplifiedLayout({
+  layoutMode,
+  primaryAxisAlignItems,
+  counterAxisAlignItems,
+  layoutWrap,
+  itemSpacing,
+  //   primaryAxisSizingMode,
+  //   counterAxisSizingMode,
+  layoutSizingHorizontal,
+  layoutSizingVertical,
+  paddingTop,
+  paddingBottom,
+  paddingLeft,
+  paddingRight,
+}: BuildLayoutParams): SimplifiedLayout | undefined {
+  if (!layoutMode || layoutMode === "NONE") return undefined;
+
+  // interpret Figma layout directions
+  const mode = layoutMode.toLowerCase() as "horizontal" | "vertical";
+
+  // interpret align items
+  function convertAlign(axisAlign?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN") {
+    switch (axisAlign) {
+      case "MIN":
+        return "flex-start";
+      case "MAX":
+        return "flex-end";
+      case "CENTER":
+        return "center";
+      case "SPACE_BETWEEN":
+        return "space-between";
+      default:
+        return undefined;
+    }
+  }
+
+  const justifyContent = convertAlign(primaryAxisAlignItems);
+  const alignItems = convertAlign(counterAxisAlignItems);
+
+  const wrap = layoutWrap === "WRAP";
+  const gap = itemSpacing ?? 0;
+
+  // interpret sizing
+  function convertSizing(s?: "FIXED" | "FILL" | "HUG"): "fixed" | "fill" | "hug" | undefined {
+    if (s === "FIXED") return "fixed";
+    if (s === "FILL") return "fill";
+    if (s === "HUG") return "hug";
+    return undefined;
+  }
+
+  const sizing = {
+    horizontal: convertSizing(layoutSizingHorizontal),
+    vertical: convertSizing(layoutSizingVertical),
+  };
+
+  // gather padding
+  const padding: SimplifiedLayout["padding"] =
+    paddingTop || paddingBottom || paddingLeft || paddingRight
+      ? {
+          top: `${paddingTop ?? 0}px`,
+          right: `${paddingRight ?? 0}px`,
+          bottom: `${paddingBottom ?? 0}px`,
+          left: `${paddingLeft ?? 0}px`,
+        }
+      : undefined;
+
+  return {
+    mode,
+    justifyContent,
+    alignItems,
+    wrap,
+    gap,
+    sizing,
+    padding,
+  };
 }

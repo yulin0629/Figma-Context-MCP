@@ -1,6 +1,6 @@
-import { config } from 'dotenv';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { FigmaMcpServer } from './server';
+import { config } from "dotenv";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { FigmaMcpServer } from "./server";
 
 // Load environment variables from .env file
 config();
@@ -10,7 +10,7 @@ export async function startServer(): Promise<void> {
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   if (!FIGMA_API_KEY) {
-    console.error('FIGMA_API_KEY environment variable is required');
+    console.error("FIGMA_API_KEY environment variable is required");
     process.exit(1);
   }
 
@@ -19,10 +19,10 @@ export async function startServer(): Promise<void> {
   const server = new FigmaMcpServer(apiKey);
 
   // Check if we're running in stdio mode (e.g., via CLI)
-  const isStdioMode = process.env.NODE_ENV === 'cli' || process.argv.includes('--stdio');
+  const isStdioMode = process.env.NODE_ENV === "cli" || process.argv.includes("--stdio");
 
   if (isStdioMode) {
-    console.log('Initializing Figma MCP Server in stdio mode...');
+    console.log("Initializing Figma MCP Server in stdio mode...");
     const transport = new StdioServerTransport();
     await server.connect(transport);
   } else {
@@ -30,15 +30,15 @@ export async function startServer(): Promise<void> {
     await server.startHttpServer(PORT);
   }
 
-  console.log('\nAvailable tools:');
-  console.log('- get-file: Fetch Figma file information');
-  console.log('- get-node: Fetch specific node information');
+  console.log("\nAvailable tools:");
+  console.log("- get-file: Fetch Figma file information");
+  console.log("- get-node: Fetch specific node information");
 }
 
 // Only run if this file is being executed directly
 if (require.main === module) {
   startServer().catch((error: Error) => {
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   });
 }
