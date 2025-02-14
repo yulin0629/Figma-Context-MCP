@@ -59,6 +59,8 @@ export interface FigmaDocumentNode {
   fills?: RawPaint[];
   strokes?: RawPaint[];
   strokeWeight?: number;
+  strokeDashes?: number[];
+  opacity?: number;
   cornerRadius?: number;
   cornerSmoothing?: number;
   individualStrokeWeights?: {

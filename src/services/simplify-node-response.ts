@@ -50,14 +50,15 @@ export interface SimplifiedNode {
   // appearance
   fills?: SimplifiedFill[];
   strokes?: SimplifiedFill[];
+  opacity?: number;
   cornerRadius?: number;
-  cornerSmoothing?: number;
   // layout & alignment
   layout?: SimplifiedLayout;
   // for frames, rectangles, images, etc.
   backgroundColor?: ColorValue;
   // for rect-specific strokes, etc.
   strokeWeight?: number;
+  strokeDashes?: number[];
   individualStrokeWeights?: {
     top: number;
     right: number;
@@ -89,7 +90,7 @@ export interface ColorValue {
   opacity: number;
 }
 
-// We interpret some Figma properties as “flex” or “grid” or a custom layout.
+// We interpret some Figma properties as "flex" or "grid" or a custom layout.
 export interface SimplifiedLayout {
   mode: "none" | "horizontal" | "vertical";
   justifyContent?: "flex-start" | "flex-end" | "center" | "space-between";
@@ -125,7 +126,7 @@ export function parseFigmaResponse(data: FigmaAPIResponse): SimplifiedDesign {
   };
 }
 
-function parseNode(node: FigmaDocumentNode): SimplifiedNode {
+function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): SimplifiedNode {
   const {
     id,
     name,
@@ -137,9 +138,10 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
     fills,
     strokes,
     strokeWeight,
+    strokeDashes,
     individualStrokeWeights,
     cornerRadius,
-    cornerSmoothing,
+    opacity,
     backgroundColor,
     layoutMode,
     primaryAxisAlignItems,
@@ -162,14 +164,16 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
     type,
   };
 
-  // bounding box
+  // bounding box - now normalized relative to parent
   if (absoluteBoundingBox) {
-    simplified.boundingBox = {
-      x: absoluteBoundingBox.x,
-      y: absoluteBoundingBox.y,
+    const normalizedBounds = {
+      x: absoluteBoundingBox.x - (parent?.absoluteBoundingBox?.x ?? absoluteBoundingBox.x),
+      y: absoluteBoundingBox.y - (parent?.absoluteBoundingBox?.y ?? absoluteBoundingBox.y),
       width: absoluteBoundingBox.width,
       height: absoluteBoundingBox.height,
     };
+
+    simplified.boundingBox = normalizedBounds;
   }
 
   // text
@@ -211,6 +215,9 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
   if (typeof strokeWeight === "number" && simplified.strokes?.length) {
     simplified.strokeWeight = strokeWeight;
   }
+  if (strokeDashes) {
+    simplified.strokeDashes = strokeDashes;
+  }
   if (individualStrokeWeights) {
     simplified.individualStrokeWeights = {
       top: individualStrokeWeights.top,
@@ -219,13 +226,15 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
       left: individualStrokeWeights.left,
     };
   }
+
+  // opacity
+  if (typeof opacity === "number") {
+    simplified.opacity = opacity;
+  }
+
   if (typeof cornerRadius === "number") {
     simplified.cornerRadius = cornerRadius;
   }
-  if (typeof cornerSmoothing === "number") {
-    simplified.cornerSmoothing = cornerSmoothing;
-  }
-
   // background color
   if (backgroundColor) {
     simplified.backgroundColor = convertColor(backgroundColor);
@@ -248,9 +257,9 @@ function parseNode(node: FigmaDocumentNode): SimplifiedNode {
     paddingRight,
   });
 
-  // children
+  // children - pass the current node as parent
   if (children && children.length > 0) {
-    simplified.children = children.map(parseNode);
+    simplified.children = children.map((child) => parseNode(child, node));
   }
 
   return simplified;
@@ -285,7 +294,7 @@ function convertColor(color: RawColor): ColorValue {
   return { hex, opacity: alpha };
 }
 
-// Convert Figma’s layout config into a more typical flex-like schema
+// Convert Figma's layout config into a more typical flex-like schema
 interface BuildLayoutParams {
   layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL";
   primaryAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
