@@ -1,4 +1,5 @@
 import { FigmaAPIResponse, FigmaDocumentNode, RawColor, RawPaint } from "../types/figma";
+import { SimplifiedLayout, buildSimplifiedLayout } from "./layout";
 
 // types.ts
 
@@ -51,7 +52,7 @@ export interface SimplifiedNode {
   fills?: SimplifiedFill[];
   strokes?: SimplifiedFill[];
   opacity?: number;
-  cornerRadius?: number;
+  borderRadius?: string;
   // layout & alignment
   layout?: SimplifiedLayout;
   // for frames, rectangles, images, etc.
@@ -67,6 +68,10 @@ export interface SimplifiedNode {
   };
   // children
   children?: SimplifiedNode[];
+
+  layoutAlign?: "INHERIT" | "STRETCH";
+  layoutGrow?: number;
+  layoutPositioning?: "AUTO" | "ABSOLUTE";
 }
 
 export interface BoundingBox {
@@ -88,26 +93,6 @@ export interface SimplifiedFill {
 export interface ColorValue {
   hex: string;
   opacity: number;
-}
-
-// We interpret some Figma properties as "flex" or "grid" or a custom layout.
-export interface SimplifiedLayout {
-  mode: "none" | "horizontal" | "vertical";
-  justifyContent?: "flex-start" | "flex-end" | "center" | "space-between";
-  alignItems?: "flex-start" | "flex-end" | "center" | "space-between";
-  wrap?: boolean;
-  gap?: number;
-  padding?: {
-    top: string;
-    right: string;
-    bottom: string;
-    left: string;
-  };
-  // we can also record if width is fixed vs. fill
-  sizing?: {
-    horizontal?: "fixed" | "fill" | "hug";
-    vertical?: "fixed" | "fill" | "hug";
-  };
 }
 
 // ---------------------- PARSING ----------------------
@@ -156,6 +141,9 @@ function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplif
     paddingBottom,
     paddingLeft,
     paddingRight,
+    layoutAlign,
+    layoutGrow,
+    layoutPositioning,
   } = node;
 
   const simplified: SimplifiedNode = {
@@ -233,11 +221,24 @@ function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplif
   }
 
   if (typeof cornerRadius === "number") {
-    simplified.cornerRadius = cornerRadius;
+    simplified.borderRadius = `${cornerRadius}px`;
   }
   // background color
   if (backgroundColor) {
     simplified.backgroundColor = convertColor(backgroundColor);
+  }
+
+  // Add layout alignment properties
+  if (layoutAlign) {
+    simplified.layoutAlign = layoutAlign;
+  }
+
+  if (typeof layoutGrow === "number") {
+    simplified.layoutGrow = layoutGrow;
+  }
+
+  if (layoutPositioning) {
+    simplified.layoutPositioning = layoutPositioning;
   }
 
   // layout data
@@ -247,14 +248,15 @@ function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplif
     counterAxisAlignItems,
     layoutWrap,
     itemSpacing,
-    primaryAxisSizingMode,
-    counterAxisSizingMode,
     layoutSizingHorizontal,
     layoutSizingVertical,
     paddingTop,
     paddingBottom,
     paddingLeft,
     paddingRight,
+    layoutAlign,
+    layoutGrow,
+    layoutPositioning,
   });
 
   // children - pass the current node as parent
@@ -292,98 +294,4 @@ function convertColor(color: RawColor): ColorValue {
   const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
 
   return { hex, opacity: alpha };
-}
-
-// Convert Figma's layout config into a more typical flex-like schema
-interface BuildLayoutParams {
-  layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL";
-  primaryAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
-  counterAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
-  layoutWrap?: "NO_WRAP" | "WRAP";
-  itemSpacing?: number;
-  primaryAxisSizingMode?: "FIXED" | "AUTO";
-  counterAxisSizingMode?: "FIXED" | "AUTO";
-  layoutSizingHorizontal?: "FIXED" | "FILL" | "HUG";
-  layoutSizingVertical?: "FIXED" | "FILL" | "HUG";
-  paddingTop?: number;
-  paddingBottom?: number;
-  paddingLeft?: number;
-  paddingRight?: number;
-}
-
-function buildSimplifiedLayout({
-  layoutMode,
-  primaryAxisAlignItems,
-  counterAxisAlignItems,
-  layoutWrap,
-  itemSpacing,
-  //   primaryAxisSizingMode,
-  //   counterAxisSizingMode,
-  layoutSizingHorizontal,
-  layoutSizingVertical,
-  paddingTop,
-  paddingBottom,
-  paddingLeft,
-  paddingRight,
-}: BuildLayoutParams): SimplifiedLayout | undefined {
-  if (!layoutMode || layoutMode === "NONE") return undefined;
-
-  // interpret Figma layout directions
-  const mode = layoutMode.toLowerCase() as "horizontal" | "vertical";
-
-  // interpret align items
-  function convertAlign(axisAlign?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN") {
-    switch (axisAlign) {
-      case "MIN":
-        return "flex-start";
-      case "MAX":
-        return "flex-end";
-      case "CENTER":
-        return "center";
-      case "SPACE_BETWEEN":
-        return "space-between";
-      default:
-        return undefined;
-    }
-  }
-
-  const justifyContent = convertAlign(primaryAxisAlignItems);
-  const alignItems = convertAlign(counterAxisAlignItems);
-
-  const wrap = layoutWrap === "WRAP";
-  const gap = itemSpacing ?? 0;
-
-  // interpret sizing
-  function convertSizing(s?: "FIXED" | "FILL" | "HUG"): "fixed" | "fill" | "hug" | undefined {
-    if (s === "FIXED") return "fixed";
-    if (s === "FILL") return "fill";
-    if (s === "HUG") return "hug";
-    return undefined;
-  }
-
-  const sizing = {
-    horizontal: convertSizing(layoutSizingHorizontal),
-    vertical: convertSizing(layoutSizingVertical),
-  };
-
-  // gather padding
-  const padding: SimplifiedLayout["padding"] =
-    paddingTop || paddingBottom || paddingLeft || paddingRight
-      ? {
-          top: `${paddingTop ?? 0}px`,
-          right: `${paddingRight ?? 0}px`,
-          bottom: `${paddingBottom ?? 0}px`,
-          left: `${paddingLeft ?? 0}px`,
-        }
-      : undefined;
-
-  return {
-    mode,
-    justifyContent,
-    alignItems,
-    wrap,
-    gap,
-    sizing,
-    padding,
-  };
 }

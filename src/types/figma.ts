@@ -78,6 +78,10 @@ export interface FigmaDocumentNode {
   componentId?: string;
   componentProperties?: Record<string, RawComponentProperty>;
   overrides?: RawOverride[];
+  // Add these new layout properties
+  layoutAlign?: "INHERIT" | "STRETCH";
+  layoutGrow?: number;
+  layoutPositioning?: "AUTO" | "ABSOLUTE";
   // etc.
 }
 
