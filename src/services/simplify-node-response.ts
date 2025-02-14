@@ -12,7 +12,7 @@ import { hasValue, isRectangle, isStrokeWeights, isTruthy } from "~/utils/identi
  * TDOO ITEMS
  *
  * - Improve color handling—room to simplify return types e.g. when only a single fill with opacity 1
- * - Improve stroke handling
+ * - Improve stroke handling, combine with borderRadius
  * - Improve layout handling—translate from Figma vocabulary to CSS
  **/
 
@@ -133,18 +133,6 @@ function parseNode(n: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplified
     type,
   };
 
-  // bounding box - now normalized relative to parent
-  if (isRectangle("absoluteBoundingBox", n) && isRectangle("absoluteBoundingBox", parent)) {
-    const normalizedBounds = {
-      x: n.absoluteBoundingBox.x - (parent?.absoluteBoundingBox?.x ?? n.absoluteBoundingBox.x),
-      y: n.absoluteBoundingBox.y - (parent?.absoluteBoundingBox?.y ?? n.absoluteBoundingBox.y),
-      width: n.absoluteBoundingBox.width,
-      height: n.absoluteBoundingBox.height,
-    };
-
-    simplified.boundingBox = normalizedBounds;
-  }
-
   // text
   if (hasValue("characters", n, isTruthy)) {
     simplified.text = n.characters;
@@ -171,14 +159,10 @@ function parseNode(n: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplified
 
   // fills & strokes
   if (hasValue("fills", n) && Array.isArray(n.fills)) {
-    simplified.fills = n.fills
-      .filter((f) => f.type === "SOLID" || f.type === "IMAGE")
-      .map(parsePaint);
+    simplified.fills = n.fills.map(parsePaint);
   }
   if (hasValue("strokes", n) && Array.isArray(n.strokes)) {
-    simplified.strokes = n.strokes
-      .filter((s) => s.type === "SOLID" || s.type === "IMAGE")
-      .map(parsePaint);
+    simplified.strokes = n.strokes.map(parsePaint);
   }
 
   // border/corner
@@ -211,7 +195,7 @@ function parseNode(n: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplified
   }
 
   // layout data
-  simplified.layout = buildSimplifiedLayout(n);
+  simplified.layout = buildSimplifiedLayout(n, parent);
 
   // children - pass the current node as parent
   if (hasValue("children", n) && n.children.length > 0) {

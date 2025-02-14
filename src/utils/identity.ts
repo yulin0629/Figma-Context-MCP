@@ -20,12 +20,25 @@ export function hasValue<K extends PropertyKey, T>(
 }
 
 export function isFrame(val: unknown): val is HasFramePropertiesTrait {
-  // We should be able to rely on existence of clipsContent which is always on frames and nowhere else in the API
   return (
     typeof val === "object" &&
     !!val &&
     "clipsContent" in val &&
     typeof val.clipsContent === "boolean"
+  );
+}
+
+export function isLayout(val: unknown): val is HasLayoutTrait {
+  return (
+    typeof val === "object" &&
+    !!val &&
+    "absoluteBoundingBox" in val &&
+    typeof val.absoluteBoundingBox === "object" &&
+    !!val.absoluteBoundingBox &&
+    "x" in val.absoluteBoundingBox &&
+    "y" in val.absoluteBoundingBox &&
+    "width" in val.absoluteBoundingBox &&
+    "height" in val.absoluteBoundingBox
   );
 }
 
