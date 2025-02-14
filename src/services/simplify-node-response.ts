@@ -1,7 +1,20 @@
-import { FigmaAPIResponse, FigmaDocumentNode, RawColor, RawPaint } from "../types/figma";
-import { SimplifiedLayout, buildSimplifiedLayout } from "./layout";
+import { SimplifiedLayout, buildSimplifiedLayout } from "~/transformers/layout";
+import type {
+  GetFileNodesResponse,
+  Node as FigmaDocumentNode,
+  Paint,
+  Vector,
+  RGBA,
+} from "@figma/rest-api-spec";
+import { hasValue, isRectangle, isStrokeWeights, isTruthy } from "~/utils/identity";
 
-// types.ts
+/**
+ * TDOO ITEMS
+ *
+ * - Improve color handling—room to simplify return types e.g. when only a single fill with opacity 1
+ * - Improve stroke handling
+ * - Improve layout handling—translate from Figma vocabulary to CSS
+ **/
 
 // -------------------- SIMPLIFIED STRUCTURES --------------------
 
@@ -49,14 +62,14 @@ export interface SimplifiedNode {
     textAlignVertical: string;
   }>;
   // appearance
+  fill?: string;
   fills?: SimplifiedFill[];
   strokes?: SimplifiedFill[];
   opacity?: number;
   borderRadius?: string;
   // layout & alignment
   layout?: SimplifiedLayout;
-  // for frames, rectangles, images, etc.
-  backgroundColor?: ColorValue;
+  // backgroundColor?: ColorValue; // Deprecated by Figma API
   // for rect-specific strokes, etc.
   strokeWeight?: number;
   strokeDashes?: number[];
@@ -68,10 +81,6 @@ export interface SimplifiedNode {
   };
   // children
   children?: SimplifiedNode[];
-
-  layoutAlign?: "INHERIT" | "STRETCH";
-  layoutGrow?: number;
-  layoutPositioning?: "AUTO" | "ABSOLUTE";
 }
 
 export interface BoundingBox {
@@ -81,13 +90,17 @@ export interface BoundingBox {
   height: number;
 }
 
-// We convert RGBA to hex plus alpha. Also store image transform info
 export interface SimplifiedFill {
-  type: "SOLID" | "IMAGE";
+  type: Paint["type"];
   hex?: string;
   opacity?: number;
   imageRef?: string;
   scaleMode?: string;
+  gradientHandlePositions?: Vector[];
+  gradientStops?: {
+    position: number;
+    color: ColorValue;
+  }[];
 }
 
 export interface ColorValue {
@@ -97,7 +110,7 @@ export interface ColorValue {
 
 // ---------------------- PARSING ----------------------
 
-export function parseFigmaResponse(data: FigmaAPIResponse): SimplifiedDesign {
+export function parseFigmaResponse(data: GetFileNodesResponse): SimplifiedDesign {
   const { name, lastModified, thumbnailUrl, nodes } = data;
 
   // Potentially gather all top-level nodes into an array
@@ -111,40 +124,8 @@ export function parseFigmaResponse(data: FigmaAPIResponse): SimplifiedDesign {
   };
 }
 
-function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): SimplifiedNode {
-  const {
-    id,
-    name,
-    type,
-    children,
-    absoluteBoundingBox,
-    characters,
-    style,
-    fills,
-    strokes,
-    strokeWeight,
-    strokeDashes,
-    individualStrokeWeights,
-    cornerRadius,
-    opacity,
-    backgroundColor,
-    layoutMode,
-    primaryAxisAlignItems,
-    counterAxisAlignItems,
-    primaryAxisSizingMode,
-    counterAxisSizingMode,
-    layoutWrap,
-    itemSpacing,
-    layoutSizingHorizontal,
-    layoutSizingVertical,
-    paddingTop,
-    paddingBottom,
-    paddingLeft,
-    paddingRight,
-    layoutAlign,
-    layoutGrow,
-    layoutPositioning,
-  } = node;
+function parseNode(n: FigmaDocumentNode, parent?: FigmaDocumentNode): SimplifiedNode {
+  const { id, name, type } = n;
 
   const simplified: SimplifiedNode = {
     id,
@@ -153,22 +134,23 @@ function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplif
   };
 
   // bounding box - now normalized relative to parent
-  if (absoluteBoundingBox) {
+  if (isRectangle("absoluteBoundingBox", n) && isRectangle("absoluteBoundingBox", parent)) {
     const normalizedBounds = {
-      x: absoluteBoundingBox.x - (parent?.absoluteBoundingBox?.x ?? absoluteBoundingBox.x),
-      y: absoluteBoundingBox.y - (parent?.absoluteBoundingBox?.y ?? absoluteBoundingBox.y),
-      width: absoluteBoundingBox.width,
-      height: absoluteBoundingBox.height,
+      x: n.absoluteBoundingBox.x - (parent?.absoluteBoundingBox?.x ?? n.absoluteBoundingBox.x),
+      y: n.absoluteBoundingBox.y - (parent?.absoluteBoundingBox?.y ?? n.absoluteBoundingBox.y),
+      width: n.absoluteBoundingBox.width,
+      height: n.absoluteBoundingBox.height,
     };
 
     simplified.boundingBox = normalizedBounds;
   }
 
   // text
-  if (characters) {
-    simplified.text = characters;
+  if (hasValue("characters", n, isTruthy)) {
+    simplified.text = n.characters;
   }
-  if (style) {
+  if (hasValue("style", n)) {
+    const style = n.style;
     simplified.textStyle = {
       fontFamily: style.fontFamily,
       fontWeight: style.fontWeight,
@@ -188,110 +170,99 @@ function parseNode(node: FigmaDocumentNode, parent?: FigmaDocumentNode): Simplif
   }
 
   // fills & strokes
-  if (fills?.length) {
-    simplified.fills = fills
+  if (hasValue("fills", n) && Array.isArray(n.fills)) {
+    simplified.fills = n.fills
       .filter((f) => f.type === "SOLID" || f.type === "IMAGE")
       .map(parsePaint);
   }
-  if (strokes?.length) {
-    simplified.strokes = strokes
+  if (hasValue("strokes", n) && Array.isArray(n.strokes)) {
+    simplified.strokes = n.strokes
       .filter((s) => s.type === "SOLID" || s.type === "IMAGE")
       .map(parsePaint);
   }
 
   // border/corner
-  if (typeof strokeWeight === "number" && simplified.strokes?.length) {
-    simplified.strokeWeight = strokeWeight;
+  if (
+    hasValue("strokeWeight", n) &&
+    typeof n.strokeWeight === "number" &&
+    simplified.strokes?.length
+  ) {
+    simplified.strokeWeight = n.strokeWeight;
   }
-  if (strokeDashes) {
-    simplified.strokeDashes = strokeDashes;
+  if (hasValue("strokeDashes", n) && Array.isArray(n.strokeDashes)) {
+    simplified.strokeDashes = n.strokeDashes;
   }
-  if (individualStrokeWeights) {
+  if (hasValue("individualStrokeWeights", n, isStrokeWeights)) {
     simplified.individualStrokeWeights = {
-      top: individualStrokeWeights.top,
-      right: individualStrokeWeights.right,
-      bottom: individualStrokeWeights.bottom,
-      left: individualStrokeWeights.left,
+      top: n.individualStrokeWeights.top,
+      right: n.individualStrokeWeights.right,
+      bottom: n.individualStrokeWeights.bottom,
+      left: n.individualStrokeWeights.left,
     };
   }
 
   // opacity
-  if (typeof opacity === "number") {
-    simplified.opacity = opacity;
+  if (hasValue("opacity", n) && typeof n.opacity === "number") {
+    simplified.opacity = n.opacity;
   }
 
-  if (typeof cornerRadius === "number") {
-    simplified.borderRadius = `${cornerRadius}px`;
-  }
-  // background color
-  if (backgroundColor) {
-    simplified.backgroundColor = convertColor(backgroundColor);
-  }
-
-  // Add layout alignment properties
-  if (layoutAlign) {
-    simplified.layoutAlign = layoutAlign;
-  }
-
-  if (typeof layoutGrow === "number") {
-    simplified.layoutGrow = layoutGrow;
-  }
-
-  if (layoutPositioning) {
-    simplified.layoutPositioning = layoutPositioning;
+  if (hasValue("cornerRadius", n) && typeof n.cornerRadius === "number") {
+    simplified.borderRadius = `${n.cornerRadius}px`;
   }
 
   // layout data
-  simplified.layout = buildSimplifiedLayout({
-    layoutMode,
-    primaryAxisAlignItems,
-    counterAxisAlignItems,
-    layoutWrap,
-    itemSpacing,
-    layoutSizingHorizontal,
-    layoutSizingVertical,
-    paddingTop,
-    paddingBottom,
-    paddingLeft,
-    paddingRight,
-    layoutAlign,
-    layoutGrow,
-    layoutPositioning,
-  });
+  simplified.layout = buildSimplifiedLayout(n);
 
   // children - pass the current node as parent
-  if (children && children.length > 0) {
-    simplified.children = children.map((child) => parseNode(child, node));
+  if (hasValue("children", n) && n.children.length > 0) {
+    simplified.children = n.children.map((child) => parseNode(child, n));
   }
 
   return simplified;
 }
 
-function parsePaint(raw: RawPaint): SimplifiedFill {
+function parsePaint(raw: Paint): SimplifiedFill {
   if (raw.type === "IMAGE") {
     return {
       type: "IMAGE",
       imageRef: raw.imageRef,
       scaleMode: raw.scaleMode,
     };
+  } else if (raw.type === "SOLID") {
+    // treat as SOLID
+    const { hex, opacity } = convertColor(raw.color!);
+    return {
+      type: "SOLID",
+      hex,
+      opacity,
+    };
+  } else if (
+    ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"].includes(
+      raw.type,
+    )
+  ) {
+    // treat as GRADIENT_LINEAR
+    return {
+      type: raw.type,
+      gradientHandlePositions: raw.gradientHandlePositions,
+      gradientStops: raw.gradientStops.map(({ position, color }) => ({
+        position,
+        color: convertColor(color),
+      })),
+    };
+  } else {
+    throw new Error(`Unknown paint type: ${raw.type}`);
   }
-  // treat as SOLID
-  const { hex, opacity } = convertColor(raw.color!);
-  return {
-    type: "SOLID",
-    hex,
-    opacity,
-  };
 }
 
 // Convert color from RGBA to { hex, opacity }
-function convertColor(color: RawColor): ColorValue {
+function convertColor(color: RGBA): ColorValue {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
-  const alpha = color.a;
+  const opacity = color.a;
 
   const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
 
-  return { hex, opacity: alpha };
+  return { hex, opacity };
 }

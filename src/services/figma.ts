@@ -1,7 +1,8 @@
 import axios, { AxiosError } from "axios";
-import { FigmaAPIResponse, FigmaError } from "../types/figma";
+import { FigmaError } from "~/types/figma";
 import fs from "fs";
 import { parseFigmaResponse, SimplifiedDesign } from "./simplify-node-response";
+import type { GetFileResponse, GetFileNodesResponse } from "@figma/rest-api-spec";
 
 export class FigmaService {
   private readonly apiKey: string;
@@ -32,14 +33,14 @@ export class FigmaService {
     }
   }
 
-  async getFile(fileKey: string, depth?: number): Promise<FigmaAPIResponse> {
+  async getFile(fileKey: string, depth?: number): Promise<GetFileResponse> {
     const endpoint = `/files/${fileKey}${depth ? `?depth=${depth}` : ""}`;
-    return this.request<FigmaAPIResponse>(endpoint);
+    return this.request<GetFileResponse>(endpoint);
   }
 
   async getNode(fileKey: string, nodeId: string, depth?: number): Promise<SimplifiedDesign> {
     const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}${depth ? `&depth=${depth}` : ""}`;
-    const response = await this.request<FigmaAPIResponse>(endpoint);
+    const response = await this.request<GetFileNodesResponse>(endpoint);
     writeLogs("figma-raw.json", response);
     const simplifiedResponse = parseFigmaResponse(response);
     writeLogs("figma-simplified.json", simplifiedResponse);
