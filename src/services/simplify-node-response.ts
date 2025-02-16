@@ -214,7 +214,7 @@ function parsePaint(raw: Paint): SimplifiedFill {
     };
   } else if (raw.type === "SOLID") {
     // treat as SOLID
-    const { hex, opacity } = convertColor(raw.color!);
+    const { hex, opacity } = convertColor(raw.color!, raw.opacity);
     return {
       type: "SOLID",
       hex,
@@ -239,14 +239,22 @@ function parsePaint(raw: Paint): SimplifiedFill {
   }
 }
 
-// Convert color from RGBA to { hex, opacity }
-function convertColor(color: RGBA): ColorValue {
+/**
+ * Convert color from RGBA to { hex, opacity }
+ *
+ * @param color - The color to convert, including alpha channel
+ * @param opacity - The opacity of the color, if not included in alpha channel
+ * @returns The converted color
+ **/
+function convertColor(color: RGBA, opacity = 1): ColorValue {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
-  const opacity = color.a;
+
+  // Alpha channel defaults to 1. If opacity and alpha are both and < 1, their effects are multiplicative
+  const a = Math.round(opacity * color.a * 100) / 100;
 
   const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
 
-  return { hex, opacity };
+  return { hex, opacity: a };
 }
