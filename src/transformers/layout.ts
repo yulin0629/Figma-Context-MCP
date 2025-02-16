@@ -32,7 +32,7 @@ export interface SimplifiedLayout {
     vertical?: "fixed" | "fill" | "hug";
   };
   overflowScroll?: ("x" | "y")[];
-  positioning?: "auto" | "absolute";
+  position?: "absolute";
 }
 
 // Convert Figma's layout config into a more typical flex-like schema
@@ -59,14 +59,15 @@ function convertAlign(
 ) {
   if (stretch && stretch.mode !== "none") {
     const { children, mode, axis } = stretch;
-    // Compute whether to check horizontally or vertically based on axis and direction
 
+    // Compute whether to check horizontally or vertically based on axis and direction
     const direction = getDirection(axis, mode);
 
     const shouldStretch =
       children.length > 0 &&
       children.reduce((shouldStretch, c) => {
         if (!shouldStretch) return false;
+        if ("layoutPositioning" in c && c.layoutPositioning === "ABSOLUTE") return true;
         if (direction === "horizontal") {
           return "layoutSizingHorizontal" in c && c.layoutSizingHorizontal === "FILL";
         } else if (direction === "vertical") {
@@ -80,7 +81,8 @@ function convertAlign(
 
   switch (axisAlign) {
     case "MIN":
-      return "flex-start";
+      // MIN, AKA flex-start, is the default alignment
+      return undefined;
     case "MAX":
       return "flex-end";
     case "CENTER":
@@ -97,7 +99,8 @@ function convertAlign(
 function convertSelfAlign(align?: HasLayoutTrait["layoutAlign"]) {
   switch (align) {
     case "MIN":
-      return "flex-start";
+      // MIN, AKA flex-start, is the default alignment
+      return undefined;
     case "MAX":
       return "flex-end";
     case "CENTER":
@@ -177,8 +180,10 @@ function buildSimplifiedFrameValues(n: FigmaDocumentNode): SimplifiedLayout | { 
     mode: frameValues.mode,
   });
   frameValues.alignSelf = convertSelfAlign(n.layoutAlign);
-  frameValues.wrap = n.layoutWrap === "WRAP";
-  frameValues.gap = `${n.itemSpacing ?? 0}px`;
+
+  // Only include wrap if it's set to WRAP, since flex layouts don't default to wrapping
+  frameValues.wrap = n.layoutWrap === "WRAP" ? true : undefined;
+  frameValues.gap = n.itemSpacing ? `${n.itemSpacing ?? 0}px` : undefined;
   // gather padding
   if (n.paddingTop || n.paddingBottom || n.paddingLeft || n.paddingRight) {
     frameValues.padding = {
@@ -206,8 +211,11 @@ function buildSimplifiedLayoutValues(
     vertical: convertSizing(n.layoutSizingVertical),
   };
 
-  // Only include positioning-related properties if parent layout isn't flex
-  if (isFrame(parent) && parent?.layoutMode === "NONE") {
+  // Only include positioning-related properties if parent layout isn't flex or if the node is absolute
+  if (isFrame(parent) && (parent?.layoutMode === "NONE" || n.layoutPositioning === "ABSOLUTE")) {
+    if (n.layoutPositioning === "ABSOLUTE") {
+      layoutValues.position = "absolute";
+    }
     if (n.absoluteBoundingBox && parent.absoluteBoundingBox) {
       layoutValues.locationRelativeToParent = {
         x: n.absoluteBoundingBox.x - (parent?.absoluteBoundingBox?.x ?? n.absoluteBoundingBox.x),
