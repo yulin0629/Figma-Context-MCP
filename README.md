@@ -54,7 +54,7 @@ After the server has been connected, you can confirm Cursor's has a valid connec
 
 Once the MCP server is connected, **you can start using the tools in Cursor's composer, as long as the composer is in agent mode.**
 
-Dropping a link to a Figma file in the composer and asking Cursor to do something with it should automatically trigger the `get-file` tool.
+Dropping a link to a Figma file in the composer and asking Cursor to do something with it should automatically trigger the `get_file` tool.
 
 Most Figma files end up being huge, so you'll probably want to link to a specific frame or group within the file. With a single element selected, you can hit `CMD + L` to copy the link to the element. You can also find it in the context menu:
 
@@ -81,7 +81,7 @@ pnpm inspect
 
 The server provides the following MCP tools:
 
-### get-file
+### get_file
 
 Fetches information about a Figma file.
 
@@ -90,7 +90,7 @@ Parameters:
 - `fileKey` (string): The key of the Figma file to fetch
 - `depth` (number, optional): How many levels deep to traverse the node tree
 
-### get-node
+### get_node
 
 Fetches information about a specific node within a Figma file.
 
