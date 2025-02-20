@@ -31,8 +31,8 @@ export async function startServer(): Promise<void> {
   }
 
   console.log("\nAvailable tools:");
-  console.log("- get-file: Fetch Figma file information");
-  console.log("- get-node: Fetch specific node information");
+  console.log("- get_file: Fetch Figma file information");
+  console.log("- get_node: Fetch specific node information");
 }
 
 // Only run if this file is being executed directly
