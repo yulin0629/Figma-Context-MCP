@@ -24,7 +24,7 @@ export class FigmaMcpServer {
   private registerTools(): void {
     // Tool to get file information
     this.server.tool(
-      "get-file",
+      "getFile",
       "Get layout information about an entire Figma file",
       {
         fileKey: z.string().describe("The key of the Figma file to fetch"),
@@ -49,7 +49,7 @@ export class FigmaMcpServer {
 
     // Tool to get node information
     this.server.tool(
-      "get-node",
+      "getNode",
       "Get layout information about a specific node in a Figma file",
       {
         fileKey: z.string().describe("The key of the Figma file containing the node"),
