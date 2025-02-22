@@ -73,10 +73,10 @@ The server can be configured using either environment variables (via `.env` file
 
 ## Connecting to Cursor
 
-### Start the development server
+### Start the server
 
 ```bash
-> pnpm dev
+> npx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 # Initializing Figma MCP Server in HTTP mode on port 3333...
 # HTTP server listening on port 3333
 # SSE endpoint available at http://localhost:3333/sse
