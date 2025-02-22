@@ -1,10 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FigmaService } from "./services/figma";
-import { Transport } from "@modelcontextprotocol/sdk/shared/transport";
 import express, { Request, Response } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { IncomingMessage, ServerResponse } from "http";
+import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 export class FigmaMcpServer {
   private readonly server: McpServer;

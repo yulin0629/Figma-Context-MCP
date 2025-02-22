@@ -28,6 +28,27 @@ Reducing the amount of context provided to the model helps make the AI more accu
 2. Install dependencies with `pnpm install`
 3. Copy `.env.example` to `.env` and fill in your [Figma API access token](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens). Only read access is required.
 
+## Configuration
+
+The server can be configured using either environment variables (via `.env` file) or command-line arguments. Command-line arguments take precedence over environment variables.
+
+### Environment Variables
+
+- `FIGMA_API_KEY`: Your Figma API access token (required)
+- `PORT`: The port to run the server on (default: 3000)
+
+### Command-line Arguments
+
+- `--figma-api-key`: Your Figma API access token
+- `--port`: The port to run the server on
+- `--help`: Show help menu
+
+Example:
+
+```bash
+pnpm start --port 4000 --figma-api-key your-api-key
+```
+
 ## Connecting to Cursor
 
 ### Start the development server

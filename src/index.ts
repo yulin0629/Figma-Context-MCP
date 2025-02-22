@@ -1,22 +1,11 @@
-import { config } from "dotenv";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { FigmaMcpServer } from "./server";
-
-// Load environment variables from .env file
-config();
+import { getServerConfig } from "./config";
 
 export async function startServer(): Promise<void> {
-  const FIGMA_API_KEY = process.env.FIGMA_API_KEY;
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  const config = getServerConfig();
 
-  if (!FIGMA_API_KEY) {
-    console.error("FIGMA_API_KEY environment variable is required");
-    process.exit(1);
-  }
-
-  // At this point we know FIGMA_API_KEY is defined
-  const apiKey: string = FIGMA_API_KEY;
-  const server = new FigmaMcpServer(apiKey);
+  const server = new FigmaMcpServer(config.figmaApiKey);
 
   // Check if we're running in stdio mode (e.g., via CLI)
   const isStdioMode = process.env.NODE_ENV === "cli" || process.argv.includes("--stdio");
@@ -26,8 +15,8 @@ export async function startServer(): Promise<void> {
     const transport = new StdioServerTransport();
     await server.connect(transport);
   } else {
-    console.log(`Initializing Figma MCP Server in HTTP mode on port ${PORT}...`);
-    await server.startHttpServer(PORT);
+    console.log(`Initializing Figma MCP Server in HTTP mode on port ${config.port}...`);
+    await server.startHttpServer(config.port);
   }
 
   console.log("\nAvailable tools:");
@@ -35,9 +24,9 @@ export async function startServer(): Promise<void> {
   console.log("- get_node: Fetch specific node information");
 }
 
-// Only run if this file is being executed directly
+// If this file is being run directly, start the server
 if (require.main === module) {
-  startServer().catch((error: Error) => {
+  startServer().catch((error) => {
     console.error("Failed to start server:", error);
     process.exit(1);
   });
