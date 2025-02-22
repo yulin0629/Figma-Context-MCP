@@ -42,7 +42,7 @@ export function getServerConfig(): ServerConfig {
 
   const config: ServerConfig = {
     figmaApiKey: "",
-    port: 3000,
+    port: 3333,
     configSources: {
       figmaApiKey: "env",
       port: "default",

@@ -24,9 +24,29 @@ Reducing the amount of context provided to the model helps make the AI more accu
 
 ## Installation
 
-1. Clone the repository
+### Running the server quickly with NPM
+
+You can run the server quickly without installing or building the repo using NPM:
+
+```bash
+npx figma-developer-mcp --figma-api-key=<your-figma-api-key>
+
+# or
+pnpx figma-developer-mcp --figma-api-key=<your-figma-api-key>
+
+# or
+yarn dlx figma-developer-mcp --figma-api-key=<your-figma-api-key>
+
+# or
+bunx figma-developer-mcp --figma-api-key=<your-figma-api-key>
+```
+
+### Running the server from local source
+
+1. Clone the [repository](https://github.com/GLips/Figma-Context-MCP)
 2. Install dependencies with `pnpm install`
 3. Copy `.env.example` to `.env` and fill in your [Figma API access token](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens). Only read access is required.
+4. Run the server with `pnpm run dev`, along with any of the flags from the [Command-line Arguments](#command-line-arguments) section.
 
 ## Configuration
 
@@ -35,19 +55,15 @@ The server can be configured using either environment variables (via `.env` file
 ### Environment Variables
 
 - `FIGMA_API_KEY`: Your Figma API access token (required)
-- `PORT`: The port to run the server on (default: 3000)
+- `PORT`: The port to run the server on (default: 3333)
 
 ### Command-line Arguments
 
+- `--version`: Show version number
 - `--figma-api-key`: Your Figma API access token
 - `--port`: The port to run the server on
+- `--stdio`: Run the server in command mode, instead of default HTTP/SSE
 - `--help`: Show help menu
-
-Example:
-
-```bash
-pnpm start --port 4000 --figma-api-key your-api-key
-```
 
 ## Connecting to Cursor
 
@@ -93,7 +109,7 @@ pnpm inspect
 # > pnpx @modelcontextprotocol/inspector
 #
 # Starting MCP inspector...
-# Proxy server listening on port 3000
+# Proxy server listening on port 3333
 #
 # 🔍 MCP Inspector is up and running at http://localhost:5173 🚀
 ```
