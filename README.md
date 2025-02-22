@@ -4,6 +4,12 @@ Give [Cursor](https://cursor.sh/) access to your Figma files with this [Model Co
 
 When Cursor has access to Figma design data, it's **way** better at one-shotting designs accurately than alternative approaches like pasting screenshots.
 
+Get started quickly, see [Configuration](#configuration) for more details:
+
+```bash
+npx figma-developer-mcp --figma-api-key=<your-figma-api-key>
+```
+
 ## Demo Video
 
 [Watch a demo of building a UI in Cursor with Figma design data](https://youtu.be/6G9yb-LrEqg)
