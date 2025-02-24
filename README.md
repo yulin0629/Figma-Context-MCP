@@ -7,7 +7,6 @@ When Cursor has access to Figma design data, it's **way** better at one-shotting
 Get started quickly, see [Configuration](#configuration) for more details:
 
 ```bash
-# Visit https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens to create a Figma API access token
 npx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 ```
 
