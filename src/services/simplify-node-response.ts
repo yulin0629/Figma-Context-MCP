@@ -5,6 +5,7 @@ import type {
   Paint,
   Vector,
   RGBA,
+  GetFileResponse,
 } from "@figma/rest-api-spec";
 import { hasValue, isRectangle, isStrokeWeights, isTruthy } from "~/utils/identity";
 
@@ -22,24 +23,19 @@ export interface SimplifiedDesign {
   name: string;
   lastModified: string;
   thumbnailUrl: string;
-  // If we want to preserve components data, we can stash it
   nodes: SimplifiedNode[];
-  components?: Record<string, SimplifiedComponent>;
-  componentSets?: Record<string, SimplifiedComponentSet>;
 }
 
 export interface SimplifiedComponent {
   key: string;
   name: string;
   description: string;
-  // etc. Expand as needed
 }
 
 export interface SimplifiedComponentSet {
   key: string;
   name: string;
   description: string;
-  // etc. Expand as needed
 }
 
 export interface SimplifiedNode {
@@ -109,6 +105,20 @@ export interface ColorValue {
 }
 
 // ---------------------- PARSING ----------------------
+export function parseFigmaFileResponse(data: GetFileResponse): SimplifiedDesign {
+  const { name, lastModified, thumbnailUrl, document } = data;
+
+  const simplifiedNodes: SimplifiedNode[] = Object.values(document.children).map((n) =>
+    parseNode(n),
+  );
+
+  return {
+    name,
+    lastModified,
+    thumbnailUrl: thumbnailUrl || "",
+    nodes: simplifiedNodes,
+  };
+}
 
 export function parseFigmaResponse(data: GetFileNodesResponse): SimplifiedDesign {
   const { name, lastModified, thumbnailUrl, nodes } = data;

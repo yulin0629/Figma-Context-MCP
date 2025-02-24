@@ -15,7 +15,7 @@ export class FigmaMcpServer {
     this.figmaService = new FigmaService(figmaApiKey);
     this.server = new McpServer({
       name: "Figma MCP Server",
-      version: "0.1.0",
+      version: "0.1.4",
     });
 
     this.registerTools();
@@ -35,8 +35,15 @@ export class FigmaMcpServer {
           console.log(`Fetching file: ${fileKey} (depth: ${depth ?? "default"})`);
           const file = await this.figmaService.getFile(fileKey, depth);
           console.log(`Successfully fetched file: ${file.name}`);
+          const { nodes, ...metadata } = file;
+
+          // Stringify each node individually to try to avoid max string length error with big files
+          const nodesJson = `[${nodes.map((node) => JSON.stringify(node, null, 2)).join(",")}]`;
+          const metadataJson = JSON.stringify(metadata, null, 2);
+          const resultJson = `{ "metadata": ${metadataJson}, "nodes": ${nodesJson} }`;
+
           return {
-            content: [{ type: "text", text: JSON.stringify(file, null, 2) }],
+            content: [{ type: "text", text: resultJson }],
           };
         } catch (error) {
           console.error(`Error fetching file ${fileKey}:`, error);
