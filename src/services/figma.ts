@@ -49,9 +49,23 @@ export class FigmaService {
 }
 
 function writeLogs(name: string, value: any) {
-  const logsDir = "logs";
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir);
+  try {
+    if (process.env.NODE_ENV !== "development") return;
+
+    const logsDir = "logs";
+
+    try {
+      fs.accessSync(process.cwd(), fs.constants.W_OK);
+    } catch (error) {
+      console.log("Failed to write logs:", error);
+      return;
+    }
+
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir);
+    }
+    fs.writeFileSync(`${logsDir}/${name}`, JSON.stringify(value, null, 2));
+  } catch (error) {
+    console.debug("Failed to write logs:", error);
   }
-  fs.writeFileSync(`${logsDir}/${name}`, JSON.stringify(value, null, 2));
 }

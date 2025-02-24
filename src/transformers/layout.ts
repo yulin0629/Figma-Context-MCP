@@ -146,7 +146,6 @@ function getDirection(
 
 function buildSimplifiedFrameValues(n: FigmaDocumentNode): SimplifiedLayout | { mode: "none" } {
   if (!isFrame(n)) {
-    console.log(`Node "${n.name}" is not a frame`);
     return { mode: "none" };
   }
 
