@@ -7,6 +7,7 @@ When Cursor has access to Figma design data, it's **way** better at one-shotting
 Get started quickly, see [Configuration](#configuration) for more details:
 
 ```bash
+# Visit https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens to create a Figma API access token
 npx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 ```
 
@@ -47,6 +48,8 @@ yarn dlx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 bunx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 ```
 
+Instructions on how to create a Figma API access token can be found [here](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens).
+
 ### Running the server from local source
 
 1. Clone the [repository](https://github.com/GLips/Figma-Context-MCP)
@@ -60,7 +63,7 @@ The server can be configured using either environment variables (via `.env` file
 
 ### Environment Variables
 
-- `FIGMA_API_KEY`: Your Figma API access token (required)
+- `FIGMA_API_KEY`: Your [Figma API access token](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens) (required)
 - `PORT`: The port to run the server on (default: 3333)
 
 ### Command-line Arguments
