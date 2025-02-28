@@ -39,9 +39,9 @@ export interface SimplifiedLayout {
 export function buildSimplifiedLayout(
   n: FigmaDocumentNode,
   parent?: FigmaDocumentNode,
-): SimplifiedLayout | undefined {
+): SimplifiedLayout {
   const frameValues = buildSimplifiedFrameValues(n);
-  const layoutValues = buildSimplifiedLayoutValues(n, parent, frameValues.mode);
+  const layoutValues = buildSimplifiedLayoutValues(n, parent, frameValues.mode) || {};
 
   return { ...frameValues, ...layoutValues };
 }

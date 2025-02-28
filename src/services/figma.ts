@@ -6,7 +6,8 @@ import {
   parseFigmaResponse,
   SimplifiedDesign,
 } from "./simplify-node-response";
-import type { GetFileResponse, GetFileNodesResponse } from "@figma/rest-api-spec";
+import type { GetImagesResponse, GetFileResponse, GetFileNodesResponse } from "@figma/rest-api-spec";
+import { downloadFigmaImage } from "~/utils/common";
 
 export class FigmaService {
   private readonly apiKey: string;
@@ -37,6 +38,19 @@ export class FigmaService {
     }
   }
 
+  async getImage(fileKey: string, nodeId: string, fileName: string, localPath: string): Promise<boolean> {
+    const endpoint = `/images/${fileKey}?ids=${nodeId}&scale=2&format=png`;
+    const file = await this.request<GetImagesResponse>(endpoint);
+    const {images = {}} = file
+    let success = false;
+    if (images[nodeId]) {
+      await downloadFigmaImage(fileName, localPath, images[nodeId]);
+      console.log(`Successfully save image`, localPath, fileName);
+      success = true;
+    }
+    return success;
+  }
+  
   async getFile(fileKey: string, depth?: number): Promise<SimplifiedDesign> {
     try {
       const endpoint = `/files/${fileKey}${depth ? `?depth=${depth}` : ""}`;
