@@ -49,6 +49,26 @@ bunx figma-developer-mcp --figma-api-key=<your-figma-api-key>
 
 Instructions on how to create a Figma API access token can be found [here](https://help.figma.com/hc/en-us/articles/8085703771159-Manage-personal-access-tokens).
 
+### JSON config for tools that use configuration files
+
+Many tools like [Windsurf](https://codeium.com/windsurf), [Cline](https://cline.bot/), and [Claude Desktop](https://claude.ai/download) use a configuration file to start the server.
+
+The `figma-developer-mcp` server can be configured by adding the following to your configuration file:
+
+```json
+{
+  "mcpServers": {
+    "figma-developer-mcp": {
+      "command": "npx",
+      "args": ["-y", "figma-developer-mcp", "--stdio"],
+      "env": {
+        "FIGMA_API_KEY": "<your-figma-api-key>"
+      }
+    }
+  }
+}
+```
+
 ### Running the server from local source
 
 1. Clone the [repository](https://github.com/GLips/Figma-Context-MCP)
