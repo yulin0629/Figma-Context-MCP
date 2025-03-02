@@ -2,7 +2,8 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 
-import type { RGBA } from "@figma/rest-api-spec";
+import type { Paint, RGBA } from "@figma/rest-api-spec";
+import { SimplifiedFill } from "~/services/simplify-node-response";
 
 export type StyleId = `${string}_${string}` & { __brand: "StyleId" };
 
@@ -156,7 +157,7 @@ export function convertColor(color: RGBA, opacity = 1): ColorValue {
 }
 
 /**
- * Convert color from RGBA to { hex, opacity }
+ * Convert color from Figma RGBA to rgba(#, #, #, #) CSS format
  *
  * @param color - The color to convert, including alpha channel
  * @param opacity - The opacity of the color, if not included in alpha channel
@@ -187,4 +188,103 @@ export function generateVarId(prefix: string = "var"): StyleId {
   }
 
   return `${prefix}_${result}` as StyleId;
+}
+
+/**
+ * Generate a CSS shorthand for values that come with top, right, bottom, and left
+ *
+ * input: { top: 10, right: 10, bottom: 10, left: 10 }
+ * output: "10px"
+ *
+ * input: { top: 10, right: 20, bottom: 10, left: 20 }
+ * output: "10px 20px"
+ *
+ * input: { top: 10, right: 20, bottom: 30, left: 40 }
+ * output: "10px 20px 30px 40px"
+ *
+ * @param values - The values to generate the shorthand for
+ * @returns The generated shorthand
+ */
+export function generateCSSShorthand(
+  values: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  },
+  {
+    ignoreZero = true,
+    suffix = "px",
+  }: {
+    /**
+     * If true and all values are 0, return undefined. Defaults to true.
+     */
+    ignoreZero?: boolean;
+    /**
+     * The suffix to add to the shorthand. Defaults to "px".
+     */
+    suffix?: string;
+  } = {},
+) {
+  const { top, right, bottom, left } = values;
+  if (ignoreZero && top === 0 && right === 0 && bottom === 0 && left === 0) {
+    return undefined;
+  }
+  if (top === right && right === bottom && bottom === left) {
+    return `${top}${suffix}`;
+  }
+  if (right === left) {
+    if (top === bottom) {
+      return `${top}${suffix} ${right}${suffix}`;
+    }
+    return `${top}${suffix} ${right}${suffix} ${bottom}${suffix}`;
+  }
+  return `${top}${suffix} ${right}${suffix} ${bottom}${suffix} ${left}${suffix}`;
+}
+
+/**
+ * Convert a Figma paint (solid, image, gradient) to a SimplifiedFill
+ * @param raw - The Figma paint to convert
+ * @returns The converted SimplifiedFill
+ */
+export function parsePaint(raw: Paint): SimplifiedFill {
+  if (raw.type === "IMAGE") {
+    return {
+      type: "IMAGE",
+      imageRef: raw.imageRef,
+      scaleMode: raw.scaleMode,
+    };
+  } else if (raw.type === "SOLID") {
+    // treat as SOLID
+    const { hex, opacity } = convertColor(raw.color!, raw.opacity);
+    return {
+      hex,
+      opacity: opacity !== 1 ? opacity : undefined,
+    };
+  } else if (
+    ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"].includes(
+      raw.type,
+    )
+  ) {
+    // treat as GRADIENT_LINEAR
+    return {
+      type: raw.type,
+      gradientHandlePositions: raw.gradientHandlePositions,
+      gradientStops: raw.gradientStops.map(({ position, color }) => ({
+        position,
+        color: convertColor(color),
+      })),
+    };
+  } else {
+    throw new Error(`Unknown paint type: ${raw.type}`);
+  }
+}
+
+/**
+ * Check if an element is visible
+ * @param element - The item to check
+ * @returns True if the item is visible, false otherwise
+ */
+export function isVisible(element: { visible?: boolean }): boolean {
+  return element.visible ?? true;
 }

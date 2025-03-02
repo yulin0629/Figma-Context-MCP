@@ -6,14 +6,16 @@ import type {
   Vector,
   GetFileResponse,
 } from "@figma/rest-api-spec";
-import { hasValue, isStrokeWeights, isTruthy } from "~/utils/identity";
-import { removeEmptyKeys, generateVarId, convertColor, StyleId } from "~/utils/common";
+import { hasValue, isRectangleCornerRadii, isTruthy } from "~/utils/identity";
+import { removeEmptyKeys, generateVarId, StyleId, parsePaint, isVisible } from "~/utils/common";
+import { buildSimplifiedStrokes, SimplifiedStroke } from "~/transformers/style";
+import { buildSimplifiedEffects } from "~/transformers/effects";
 /**
  * TDOO ITEMS
  *
  * - Improve color handling—room to simplify return types e.g. when only a single fill with opacity 1
- * - Improve stroke handling, combine with borderRadius
  * - Improve layout handling—translate from Figma vocabulary to CSS
+ * - Look up existing styles in new MCP endpoint—Figma supports individual lookups without enterprise /v1/styles/:key
  **/
 
 // -------------------- SIMPLIFIED STRUCTURES --------------------
@@ -36,7 +38,7 @@ export type StrokeWeights = {
 };
 // type GlobalVars = Record<string, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
 type GlobalVars = {
-  styles: Record<StyleId, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
+  styles: Record<StyleId, TextStyle | SimplifiedFill[] | SimplifiedLayout | SimplifiedStroke>;
   vectorParents?: Record<
     string,
     {
@@ -70,15 +72,13 @@ export interface SimplifiedNode {
   fills?: string;
   styles?: string;
   strokes?: string;
+  effects?: string;
   opacity?: number;
   borderRadius?: string;
   // layout & alignment
   layout?: string;
   // backgroundColor?: ColorValue; // Deprecated by Figma API
   // for rect-specific strokes, etc.
-  strokeWeight?: number;
-  strokeDashes?: number[];
-  individualStrokeWeights?: string;
   // children
   children?: SimplifiedNode[];
 }
@@ -166,6 +166,7 @@ export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse)
     vectorParents: {},
   };
   const simplifiedNodes: SimplifiedNode[] = nodes
+    .filter(isVisible)
     .map((n) => parseNode(globalVars, n))
     .filter((child) => child !== null && child !== undefined);
   globalVars = parseGlobalVars(globalVars, simplifiedNodes);
@@ -226,9 +227,7 @@ function parseNode(
   n: FigmaDocumentNode,
   parent?: FigmaDocumentNode,
 ): SimplifiedNode | null {
-  const { id, name, type, visible = true } = n;
-  // Ignore invisible elements
-  if (!visible) return null;
+  const { id, name, type } = n;
 
   const simplified: SimplifiedNode = {
     id,
@@ -263,12 +262,15 @@ function parseNode(
     const fills = n.fills.map(parsePaint);
     simplified.fills = findOrCreateVar(globalVars, fills, "fill");
   }
-  if (hasValue("styles", n)) {
-    simplified.styles = findOrCreateVar(globalVars, n.styles, "styles");
-  }
-  if (hasValue("strokes", n) && Array.isArray(n.strokes) && n.strokes.length) {
-    const strokes = n.strokes.map(parsePaint);
+
+  const strokes = buildSimplifiedStrokes(n);
+  if (strokes.colors.length) {
     simplified.strokes = findOrCreateVar(globalVars, strokes, "stroke");
+  }
+
+  const effects = buildSimplifiedEffects(n);
+  if (effects.boxShadow) {
+    simplified.effects = findOrCreateVar(globalVars, effects, "effect");
   }
 
   // Process layout
@@ -283,39 +285,23 @@ function parseNode(
   }
 
   // border/corner
-  if (
-    hasValue("strokeWeight", n) &&
-    typeof n.strokeWeight === "number" &&
-    simplified.strokes?.length
-  ) {
-    simplified.strokeWeight = n.strokeWeight;
-  }
-  if (hasValue("strokeDashes", n) && Array.isArray(n.strokeDashes) && n.strokeDashes.length) {
-    simplified.strokeDashes = n.strokeDashes;
-  }
-
-  if (hasValue("individualStrokeWeights", n, isStrokeWeights)) {
-    const strokeWeights = {
-      top: n.individualStrokeWeights.top,
-      right: n.individualStrokeWeights.right,
-      bottom: n.individualStrokeWeights.bottom,
-      left: n.individualStrokeWeights.left,
-    };
-    simplified.individualStrokeWeights = findOrCreateVar(globalVars, strokeWeights, "weights");
-  }
 
   // opacity
-  if (hasValue("opacity", n) && typeof n.opacity === "number") {
+  if (hasValue("opacity", n) && typeof n.opacity === "number" && n.opacity !== 1) {
     simplified.opacity = n.opacity;
   }
 
   if (hasValue("cornerRadius", n) && typeof n.cornerRadius === "number") {
     simplified.borderRadius = `${n.cornerRadius}px`;
   }
+  if (hasValue("rectangleCornerRadii", n, isRectangleCornerRadii)) {
+    simplified.borderRadius = `${n.rectangleCornerRadii[0]}px ${n.rectangleCornerRadii[1]}px ${n.rectangleCornerRadii[2]}px ${n.rectangleCornerRadii[3]}px`;
+  }
 
   // Recursively process child nodes
   if (hasValue("children", n) && n.children.length > 0) {
     let children = n.children
+      .filter(isVisible)
       .map((child) => parseNode(globalVars, child, n))
       .filter((child) => child !== null && child !== undefined);
     if (children.length) {
@@ -345,38 +331,4 @@ function parseNode(
   }
 
   return removeEmptyKeys(simplified);
-}
-
-function parsePaint(raw: Paint): SimplifiedFill {
-  if (raw.type === "IMAGE") {
-    return {
-      type: "IMAGE",
-      imageRef: raw.imageRef,
-      scaleMode: raw.scaleMode,
-    };
-  } else if (raw.type === "SOLID") {
-    // treat as SOLID
-    const { hex, opacity } = convertColor(raw.color!, raw.opacity);
-    return {
-      type: "SOLID",
-      hex,
-      opacity,
-    };
-  } else if (
-    ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"].includes(
-      raw.type,
-    )
-  ) {
-    // treat as GRADIENT_LINEAR
-    return {
-      type: raw.type,
-      gradientHandlePositions: raw.gradientHandlePositions,
-      gradientStops: raw.gradientStops.map(({ position, color }) => ({
-        position,
-        color: convertColor(color),
-      })),
-    };
-  } else {
-    throw new Error(`Unknown paint type: ${raw.type}`);
-  }
 }

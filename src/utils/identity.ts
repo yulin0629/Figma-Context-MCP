@@ -70,3 +70,7 @@ export function isRectangle<T, K extends string>(
     "height" in recordObj[key]
   );
 }
+
+export function isRectangleCornerRadii(val: unknown): val is number[] {
+  return Array.isArray(val) && val.length === 4 && val.every((v) => typeof v === "number");
+}

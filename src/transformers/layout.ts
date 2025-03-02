@@ -4,6 +4,7 @@ import type {
   HasFramePropertiesTrait,
   HasLayoutTrait,
 } from "@figma/rest-api-spec";
+import { generateCSSShorthand } from "~/utils/common";
 
 export interface SimplifiedLayout {
   mode: "none" | "row" | "column";
@@ -21,12 +22,7 @@ export interface SimplifiedLayout {
     height?: number;
     aspectRatio?: number;
   };
-  padding?: {
-    top: string;
-    right: string;
-    bottom: string;
-    left: string;
-  };
+  padding?: string;
   sizing?: {
     horizontal?: "fixed" | "fill" | "hug";
     vertical?: "fixed" | "fill" | "hug";
@@ -185,12 +181,12 @@ function buildSimplifiedFrameValues(n: FigmaDocumentNode): SimplifiedLayout | { 
   frameValues.gap = n.itemSpacing ? `${n.itemSpacing ?? 0}px` : undefined;
   // gather padding
   if (n.paddingTop || n.paddingBottom || n.paddingLeft || n.paddingRight) {
-    frameValues.padding = {
-      top: `${n.paddingTop ?? 0}px`,
-      right: `${n.paddingRight ?? 0}px`,
-      bottom: `${n.paddingBottom ?? 0}px`,
-      left: `${n.paddingLeft ?? 0}px`,
-    };
+    frameValues.padding = generateCSSShorthand({
+      top: n.paddingTop ?? 0,
+      right: n.paddingRight ?? 0,
+      bottom: n.paddingBottom ?? 0,
+      left: n.paddingLeft ?? 0,
+    });
   }
 
   return frameValues;
