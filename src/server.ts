@@ -22,13 +22,49 @@ export class FigmaMcpServer {
   }
 
   private registerTools(): void {
+    this.server.tool(
+      "get_image",
+      "Get the icon file, Get images from Figma data based on the imageRef of image nodes",
+      {
+        fileKey: z.string().describe("The key of the Figma file containing the node"),
+        nodeId: z.string().describe("The ID of the node to fetch"),
+        fileName: z.string().describe("The name of the file to fetch"),
+        localPath: z
+          .string()
+          .describe("The absolute path to the directory where images are stored in the project"),
+      },
+      async ({ fileKey, nodeId, fileName, localPath }) => {
+        try {
+          console.log(`get image: ${nodeId} from file: ${fileKey}`);
+          const saveSuccess = await this.figmaService.getImage(
+            fileKey,
+            nodeId,
+            fileName,
+            localPath,
+          );
+          return {
+            content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
+          };
+        } catch (error) {
+          console.error(`Error download node ${nodeId} from file ${fileKey}:`, error);
+          return {
+            content: [{ type: "text", text: `Error fetching node: ${error}` }],
+          };
+        }
+      },
+    );
     // Tool to get file information
     this.server.tool(
       "get_file",
-      "Get layout information about an entire Figma file",
+      "When the nodeId cannot be obtained, obtain the layout information about the entire Figma file",
       {
         fileKey: z.string().describe("The key of the Figma file to fetch"),
-        depth: z.number().optional().describe("How many levels deep to traverse the node tree"),
+        depth: z
+          .number()
+          .optional()
+          .describe(
+            "How many levels deep to traverse the node tree, only use if explicitly requested by the user",
+          ),
       },
       async ({ fileKey, depth }) => {
         try {
@@ -59,8 +95,14 @@ export class FigmaMcpServer {
       "get_node",
       "Get layout information about a specific node in a Figma file",
       {
-        fileKey: z.string().describe("The key of the Figma file containing the node"),
-        nodeId: z.string().describe("The ID of the node to fetch"),
+        fileKey: z
+          .string()
+          .describe(
+            "The key of the Figma file containing the node, often found in a provided URL like figma.com/(file|design)/<fileKey>/...",
+          ),
+        nodeId: z
+          .string()
+          .describe("The ID of the node to fetch, often found as URL parameter node-id=<nodeId>"),
         depth: z.number().optional().describe("How many levels deep to traverse the node tree"),
       },
       async ({ fileKey, nodeId, depth }) => {
