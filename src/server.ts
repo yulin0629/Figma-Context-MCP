@@ -15,7 +15,7 @@ export class FigmaMcpServer {
     this.figmaService = new FigmaService(figmaApiKey);
     this.server = new McpServer({
       name: "Figma MCP Server",
-      version: "0.1.4",
+      version: "0.1.5",
     });
 
     this.registerTools();
