@@ -1,10 +1,10 @@
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
+import axios from "axios";
+import fs from "fs";
+import path from "path";
 
-import type {
-  RGBA,
-} from "@figma/rest-api-spec";
+import type { RGBA } from "@figma/rest-api-spec";
+
+export type StyleId = `${string}_${string}` & { __brand: "StyleId" };
 
 export interface ColorValue {
   hex: string;
@@ -20,41 +20,41 @@ export interface ColorValue {
  * @throws Error if download fails
  */
 export async function downloadFigmaImage(
-  fileName: string, 
-  localPath: string, 
-  imageUrl: string
+  fileName: string,
+  localPath: string,
+  imageUrl: string,
 ): Promise<string> {
   try {
     // Ensure local path exists
     if (!fs.existsSync(localPath)) {
       fs.mkdirSync(localPath, { recursive: true });
     }
-    
+
     // Build the complete file path
     const fullPath = path.join(localPath, fileName);
-    
+
     // Use axios to download the image, set responseType to stream
     const response = await axios({
-      method: 'GET',
+      method: "GET",
       url: imageUrl,
-      responseType: 'stream',
+      responseType: "stream",
       timeout: 30000, // 30 seconds timeout
     });
-    
+
     // Create write stream
     const writer = fs.createWriteStream(fullPath);
-    
+
     // Pipe response stream to file stream
     response.data.pipe(writer);
-    
+
     // Return a Promise that resolves when writing is complete
     return new Promise((resolve, reject) => {
-      writer.on('finish', () => {
+      writer.on("finish", () => {
         console.log(`Image saved to: ${fullPath}`);
         resolve(fullPath);
       });
-      
-      writer.on('error', (err: Error) => {
+
+      writer.on("error", (err: Error) => {
         // Delete partially downloaded file
         fs.unlink(fullPath, () => {});
         reject(new Error(`Failed to download image: ${err.message}`));
@@ -73,13 +73,13 @@ export async function downloadFigmaImage(
  */
 export function removeEmptyKeys<T>(input: T): T {
   // If not an object type or null, return directly
-  if (typeof input !== 'object' || input === null) {
+  if (typeof input !== "object" || input === null) {
     return input;
   }
 
   // Handle array type
   if (Array.isArray(input)) {
-    return input.map(item => removeEmptyKeys(item)) as T;
+    return input.map((item) => removeEmptyKeys(item)) as T;
   }
 
   // Handle object type
@@ -87,17 +87,19 @@ export function removeEmptyKeys<T>(input: T): T {
   for (const key in input) {
     if (Object.prototype.hasOwnProperty.call(input, key)) {
       const value = input[key];
-      
+
       // Recursively process nested objects
       const cleanedValue = removeEmptyKeys(value);
-      
+
       // Skip empty arrays and empty objects
       if (
-        cleanedValue !== undefined && 
+        cleanedValue !== undefined &&
         !(Array.isArray(cleanedValue) && cleanedValue.length === 0) &&
-        !(typeof cleanedValue === 'object' && 
-          cleanedValue !== null && 
-          Object.keys(cleanedValue).length === 0)
+        !(
+          typeof cleanedValue === "object" &&
+          cleanedValue !== null &&
+          Object.keys(cleanedValue).length === 0
+        )
       ) {
         result[key] = cleanedValue;
       }
@@ -115,21 +117,21 @@ export function removeEmptyKeys<T>(input: T): T {
  */
 export function hexToRgba(hex: string, opacity: number = 1): string {
   // Remove possible # prefix
-  hex = hex.replace('#', '');
-  
+  hex = hex.replace("#", "");
+
   // Handle shorthand hex values (e.g., #FFF)
   if (hex.length === 3) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
   }
-  
+
   // Convert hex to RGB values
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
-  
+
   // Ensure opacity is in the 0-1 range
   const validOpacity = Math.min(Math.max(opacity, 0), 1);
-  
+
   return `rgba(${r}, ${g}, ${b}, ${validOpacity})`;
 }
 
@@ -175,15 +177,14 @@ export function formatRGBAColor(color: RGBA, opacity = 1): string {
  * @param prefix - ID prefix
  * @returns A 6-character random ID string with prefix
  */
-export function generateVarId(prefix: string = 'var'): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  
+export function generateVarId(prefix: string = "var"): StyleId {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+
   for (let i = 0; i < 6; i++) {
     const randomIndex = Math.floor(Math.random() * chars.length);
     result += chars[randomIndex];
   }
-  
-  return `${prefix}_${result}`;
-}
 
+  return `${prefix}_${result}` as StyleId;
+}

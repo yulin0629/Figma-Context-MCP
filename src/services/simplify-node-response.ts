@@ -4,11 +4,10 @@ import type {
   Node as FigmaDocumentNode,
   Paint,
   Vector,
-  RGBA,
   GetFileResponse,
 } from "@figma/rest-api-spec";
 import { hasValue, isStrokeWeights, isTruthy } from "~/utils/identity";
-import {removeEmptyKeys, generateVarId, convertColor} from '~/utils/common'
+import { removeEmptyKeys, generateVarId, convertColor, StyleId } from "~/utils/common";
 /**
  * TDOO ITEMS
  *
@@ -35,25 +34,26 @@ export type StrokeWeights = {
   bottom: number;
   left: number;
 };
-type GlobalVars = Record<string, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
+// type GlobalVars = Record<string, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
+type GlobalVars = {
+  styles: Record<StyleId, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
+  vectorParents?: Record<
+    string,
+    {
+      parentId: string;
+      parentName: string;
+      parentType: string;
+      childrenId: string;
+    }
+  >;
+  childrenToParents?: Record<string, string[]>;
+};
 export interface SimplifiedDesign {
   name: string;
   lastModified: string;
   thumbnailUrl: string;
   nodes: SimplifiedNode[];
   globalVars: GlobalVars;
-}
-
-export interface SimplifiedComponent {
-  key: string;
-  name: string;
-  description: string;
-}
-
-export interface SimplifiedComponentSet {
-  key: string;
-  name: string;
-  description: string;
 }
 
 export interface SimplifiedNode {
@@ -69,7 +69,7 @@ export interface SimplifiedNode {
   fill?: string;
   fills?: string;
   styles?: string;
-  strokes?: string ;
+  strokes?: string;
   opacity?: number;
   borderRadius?: string;
   // layout & alignment
@@ -112,41 +112,39 @@ export interface ColorValue {
 function parseGlobalVars(globalVars: GlobalVars, simplifiedNodes: SimplifiedNode[]): GlobalVars {
   // Reorganize vectorParents based on childrenId
   const childrenToParents: Record<string, string[]> = {};
-  
+
   // Iterate through vectorParents, group by childrenId
-  Object.entries(globalVars.vectorParents).forEach(([parentId, data]) => {
+  Object.entries(globalVars.vectorParents ?? {}).forEach(([parentId, data]) => {
     const { childrenId } = data as { childrenId: string };
-    
+
     if (!childrenToParents[childrenId]) {
       childrenToParents[childrenId] = [];
     }
-    
+
     childrenToParents[childrenId].push(parentId);
   });
-  
-  
-  if (simplifiedNodes.length){
+
+  if (simplifiedNodes.length) {
     // Process parent nodes with the same childrenId
     Object.values(childrenToParents).forEach((parentIds) => {
       // Find all parent nodes
-      parentIds.forEach(parentId => {
+      parentIds.forEach((parentId) => {
         let parentNode = findNodeById(parentId, simplifiedNodes);
         // If parent node is found, modify it directly
         if (parentNode) {
           // Save original size information
-          const {id} = parentNode;
-          Object.keys(parentNode).forEach(key => {
+          const { id } = parentNode;
+          Object.keys(parentNode).forEach((key) => {
             delete parentNode[key as keyof SimplifiedNode];
-          })
+          });
           Object.assign(parentNode, {
             id,
             type: "IMAGE",
-          })
+          });
         }
       });
     });
   }
-
 
   // Store grouping results in globalVars
   globalVars.childrenToParents = childrenToParents;
@@ -155,14 +153,21 @@ function parseGlobalVars(globalVars: GlobalVars, simplifiedNodes: SimplifiedNode
 }
 
 // ---------------------- PARSING ----------------------
-export function parseFigmaFileResponse(data: GetFileResponse): SimplifiedDesign {
-  const { name, lastModified, thumbnailUrl, document } = data;
-  let globalVars: Record<string, any> = {
-    vectorParents: {}
+export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse): SimplifiedDesign {
+  const { name, lastModified, thumbnailUrl } = data;
+  let nodes: FigmaDocumentNode[];
+  if ("document" in data) {
+    nodes = Object.values(data.document.children);
+  } else {
+    nodes = Object.values(data.nodes).map((n) => n.document);
+  }
+  let globalVars: GlobalVars = {
+    styles: {},
+    vectorParents: {},
   };
-  const simplifiedNodes: SimplifiedNode[] = Object.values(document.children).map((n) =>
-    parseNode(globalVars, n),
-  ).filter((child) => child !== null && child !== undefined);
+  const simplifiedNodes: SimplifiedNode[] = nodes
+    .map((n) => parseNode(globalVars, n))
+    .filter((child) => child !== null && child !== undefined);
   globalVars = parseGlobalVars(globalVars, simplifiedNodes);
 
   return {
@@ -180,7 +185,7 @@ const findNodeById = (id: string, nodes: SimplifiedNode[]): SimplifiedNode | und
     if (node?.id === id) {
       return node;
     }
-    
+
     if (node?.children && node.children.length > 0) {
       const foundInChildren = findNodeById(id, node.children);
       if (foundInChildren) {
@@ -188,10 +193,9 @@ const findNodeById = (id: string, nodes: SimplifiedNode[]): SimplifiedNode | und
       }
     }
   }
-  
+
   return undefined;
 };
-
 
 /**
  * Find or create global variables
@@ -200,53 +204,32 @@ const findNodeById = (id: string, nodes: SimplifiedNode[]): SimplifiedNode | und
  * @param prefix - Variable ID prefix
  * @returns Variable ID
  */
-function findOrCreateVar(
-  globalVars: Record<string, any>, 
-  value: any, 
-  prefix: string
-): string {
+function findOrCreateVar(globalVars: GlobalVars, value: any, prefix: string): StyleId {
   // Check if the same value already exists
-  const existingVarId = Object.entries(globalVars).find(
-    ([_, existingValue]) => JSON.stringify(existingValue) === JSON.stringify(value)
-  )?.[0];
+  const [existingVarId] =
+    Object.entries(globalVars.styles).find(
+      ([_, existingValue]) => JSON.stringify(existingValue) === JSON.stringify(value),
+    ) ?? [];
 
   if (existingVarId) {
-    return existingVarId;
+    return existingVarId as StyleId;
   }
 
   // Create a new variable if it doesn't exist
   const varId = generateVarId(prefix);
-  globalVars[varId] = value;
+  globalVars.styles[varId] = value;
   return varId;
 }
 
-export function parseFigmaResponse(data: GetFileNodesResponse): SimplifiedDesign {
-  const { name, lastModified, thumbnailUrl, nodes } = data;
-  let globalVars: Record<string, any> = {
-    vectorParents: {}
-  };
-  
-  const simplifiedNodes: (SimplifiedNode)[] = Object.values(nodes).map(
-    (n) => parseNode(globalVars, n.document)
-  ).filter((child) => child !== null && child !== undefined);
-  
-  globalVars = parseGlobalVars(globalVars, simplifiedNodes);
-
-  return {
-    name,
-    lastModified,
-    thumbnailUrl,
-    nodes: simplifiedNodes,
-    globalVars,
-  };
-}
-
-
-function parseNode(globalVars: Record<string, any>, n: FigmaDocumentNode, parent?: FigmaDocumentNode): SimplifiedNode | null {
+function parseNode(
+  globalVars: GlobalVars,
+  n: FigmaDocumentNode,
+  parent?: FigmaDocumentNode,
+): SimplifiedNode | null {
   const { id, name, type, visible = true } = n;
   // Ignore invisible elements
-  if (!visible) return null
-  
+  if (!visible) return null;
+
   const simplified: SimplifiedNode = {
     id,
     name,
@@ -272,26 +255,26 @@ function parseNode(globalVars: Record<string, any>, n: FigmaDocumentNode, parent
       textAlignHorizontal: style.textAlignHorizontal,
       textAlignVertical: style.textAlignVertical,
     };
-    simplified.textStyle = findOrCreateVar(globalVars, textStyle, 'style');
+    simplified.textStyle = findOrCreateVar(globalVars, textStyle, "style");
   }
 
   // fills & strokes
   if (hasValue("fills", n) && Array.isArray(n.fills) && n.fills.length) {
     const fills = n.fills.map(parsePaint);
-    simplified.fills = findOrCreateVar(globalVars, fills, 'fill');
+    simplified.fills = findOrCreateVar(globalVars, fills, "fill");
   }
   if (hasValue("styles", n)) {
-    simplified.styles = findOrCreateVar(globalVars, n.styles, 'styles');
+    simplified.styles = findOrCreateVar(globalVars, n.styles, "styles");
   }
   if (hasValue("strokes", n) && Array.isArray(n.strokes) && n.strokes.length) {
     const strokes = n.strokes.map(parsePaint);
-    simplified.strokes = findOrCreateVar(globalVars, strokes, 'stroke');
+    simplified.strokes = findOrCreateVar(globalVars, strokes, "stroke");
   }
 
   // Process layout
   const layout = buildSimplifiedLayout(n, parent);
   if (Object.keys(layout).length > 1) {
-    simplified.layout = findOrCreateVar(globalVars, layout, 'layout');
+    simplified.layout = findOrCreateVar(globalVars, layout, "layout");
   }
 
   // Keep other simple properties directly
@@ -318,7 +301,7 @@ function parseNode(globalVars: Record<string, any>, n: FigmaDocumentNode, parent
       bottom: n.individualStrokeWeights.bottom,
       left: n.individualStrokeWeights.left,
     };
-    simplified.individualStrokeWeights = findOrCreateVar(globalVars, strokeWeights, 'weights');
+    simplified.individualStrokeWeights = findOrCreateVar(globalVars, strokeWeights, "weights");
   }
 
   // opacity
@@ -332,28 +315,31 @@ function parseNode(globalVars: Record<string, any>, n: FigmaDocumentNode, parent
 
   // Recursively process child nodes
   if (hasValue("children", n) && n.children.length > 0) {
-    let children =  n.children.map((child) => parseNode(globalVars, child, n)).filter((child) => child !== null && child !== undefined);
-    if (children.length){
-      simplified.children = children
+    let children = n.children
+      .map((child) => parseNode(globalVars, child, n))
+      .filter((child) => child !== null && child !== undefined);
+    if (children.length) {
+      simplified.children = children;
     }
   }
 
   // Detect VECTOR type nodes and store their parent node information
   if (type === "VECTOR") {
     // Cache VECTOR nodes, store directly using prefix
-    const{ id: nodeId, ...vectorNodeData } = simplified;
-    
+    const { id: nodeId, ...vectorNodeData } = simplified;
+
     // Check if similar nodes already exist (ignoring id)
-    const vectorId = findOrCreateVar(globalVars, vectorNodeData, 'vector');
-    
+    const vectorId = findOrCreateVar(globalVars, vectorNodeData, "vector");
+
     // If there is a parent node, store relationship information
     if (parent) {
       // Store parent node information of the VECTOR node
+      globalVars.vectorParents ??= {};
       globalVars.vectorParents[parent.id] = {
         parentId: parent.id,
         parentName: parent.name,
         parentType: parent.type,
-        childrenId: vectorId
+        childrenId: vectorId,
       };
     }
   }
@@ -394,4 +380,3 @@ function parsePaint(raw: Paint): SimplifiedFill {
     throw new Error(`Unknown paint type: ${raw.type}`);
   }
 }
-
