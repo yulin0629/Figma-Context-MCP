@@ -3,12 +3,12 @@ import fs from "fs";
 import path from "path";
 
 import type { Paint, RGBA } from "@figma/rest-api-spec";
-import { SimplifiedFill } from "~/services/simplify-node-response";
+import { CSSHexColor, CSSRGBAColor, SimplifiedFill } from "~/services/simplify-node-response";
 
 export type StyleId = `${string}_${string}` & { __brand: "StyleId" };
 
 export interface ColorValue {
-  hex: string;
+  hex: CSSHexColor;
   opacity: number;
 }
 
@@ -151,7 +151,8 @@ export function convertColor(color: RGBA, opacity = 1): ColorValue {
   // Alpha channel defaults to 1. If opacity and alpha are both and < 1, their effects are multiplicative
   const a = Math.round(opacity * color.a * 100) / 100;
 
-  const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+  const hex = ("#" +
+    ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()) as CSSHexColor;
 
   return { hex, opacity: a };
 }
@@ -163,7 +164,7 @@ export function convertColor(color: RGBA, opacity = 1): ColorValue {
  * @param opacity - The opacity of the color, if not included in alpha channel
  * @returns The converted color
  **/
-export function formatRGBAColor(color: RGBA, opacity = 1): string {
+export function formatRGBAColor(color: RGBA, opacity = 1): CSSRGBAColor {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
@@ -257,10 +258,11 @@ export function parsePaint(raw: Paint): SimplifiedFill {
   } else if (raw.type === "SOLID") {
     // treat as SOLID
     const { hex, opacity } = convertColor(raw.color!, raw.opacity);
-    return {
-      hex,
-      opacity: opacity !== 1 ? opacity : undefined,
-    };
+    if (opacity === 1) {
+      return hex;
+    } else {
+      return formatRGBAColor(raw.color!, opacity);
+    }
   } else if (
     ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"].includes(
       raw.type,

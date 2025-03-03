@@ -5,6 +5,8 @@ import type {
   HasFramePropertiesTrait,
 } from "@figma/rest-api-spec";
 import { isTruthy } from "remeda";
+import { CSSHexColor } from "~/services/simplify-node-response";
+import { CSSRGBAColor } from "~/services/simplify-node-response";
 
 export { isTruthy };
 
@@ -73,4 +75,8 @@ export function isRectangle<T, K extends string>(
 
 export function isRectangleCornerRadii(val: unknown): val is number[] {
   return Array.isArray(val) && val.length === 4 && val.every((v) => typeof v === "number");
+}
+
+export function isCSSColorValue(val: unknown): val is CSSRGBAColor | CSSHexColor {
+  return typeof val === "string" && (val.startsWith("#") || val.startsWith("rgba"));
 }

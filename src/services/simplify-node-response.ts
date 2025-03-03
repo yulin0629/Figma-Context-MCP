@@ -9,13 +9,13 @@ import type {
 import { hasValue, isRectangleCornerRadii, isTruthy } from "~/utils/identity";
 import { removeEmptyKeys, generateVarId, StyleId, parsePaint, isVisible } from "~/utils/common";
 import { buildSimplifiedStrokes, SimplifiedStroke } from "~/transformers/style";
-import { buildSimplifiedEffects } from "~/transformers/effects";
+import { buildSimplifiedEffects, SimplifiedEffects } from "~/transformers/effects";
 /**
  * TDOO ITEMS
  *
- * - Improve color handling—room to simplify return types e.g. when only a single fill with opacity 1
  * - Improve layout handling—translate from Figma vocabulary to CSS
  * - Look up existing styles in new MCP endpoint—Figma supports individual lookups without enterprise /v1/styles/:key
+ * - Support endpoint for getting SVG data from Figma, similar to images
  **/
 
 // -------------------- SIMPLIFIED STRUCTURES --------------------
@@ -36,9 +36,15 @@ export type StrokeWeights = {
   bottom: number;
   left: number;
 };
-// type GlobalVars = Record<string, TextStyle | SimplifiedFill[] | SimplifiedLayout | StrokeWeights>;
+type StyleTypes =
+  | TextStyle
+  | SimplifiedFill[]
+  | SimplifiedLayout
+  | SimplifiedStroke
+  | SimplifiedEffects
+  | string;
 type GlobalVars = {
-  styles: Record<StyleId, TextStyle | SimplifiedFill[] | SimplifiedLayout | SimplifiedStroke>;
+  styles: Record<StyleId, StyleTypes>;
   vectorParents?: Record<
     string,
     {
@@ -68,7 +74,6 @@ export interface SimplifiedNode {
   text?: string;
   textStyle?: string;
   // appearance
-  fill?: string;
   fills?: string;
   styles?: string;
   strokes?: string;
@@ -90,19 +95,24 @@ export interface BoundingBox {
   height: number;
 }
 
-export interface SimplifiedFill {
-  type?: Paint["type"];
-  hex?: string;
-  rgba?: string;
-  opacity?: number;
-  imageRef?: string;
-  scaleMode?: string;
-  gradientHandlePositions?: Vector[];
-  gradientStops?: {
-    position: number;
-    color: ColorValue | string;
-  }[];
-}
+export type CSSRGBAColor = `rgba(${number}, ${number}, ${number}, ${number})`;
+export type CSSHexColor = `#${string}`;
+export type SimplifiedFill =
+  | {
+      type?: Paint["type"];
+      hex?: string;
+      rgba?: string;
+      opacity?: number;
+      imageRef?: string;
+      scaleMode?: string;
+      gradientHandlePositions?: Vector[];
+      gradientStops?: {
+        position: number;
+        color: ColorValue | string;
+      }[];
+    }
+  | CSSRGBAColor
+  | CSSHexColor;
 
 export interface ColorValue {
   hex: string;
@@ -259,6 +269,7 @@ function parseNode(
 
   // fills & strokes
   if (hasValue("fills", n) && Array.isArray(n.fills) && n.fills.length) {
+    // const fills = simplifyFills(n.fills.map(parsePaint));
     const fills = n.fills.map(parsePaint);
     simplified.fills = findOrCreateVar(globalVars, fills, "fill");
   }
