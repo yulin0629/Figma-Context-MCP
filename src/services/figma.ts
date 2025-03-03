@@ -43,14 +43,15 @@ export class FigmaService {
     nodeId: string,
     fileName: string,
     localPath: string,
+    fileType: "png" | "svg" = "png",
   ): Promise<boolean> {
-    const endpoint = `/images/${fileKey}?ids=${nodeId}&scale=2&format=png`;
+    const endpoint = `/images/${fileKey}?ids=${nodeId}&scale=2&format=${fileType}`;
     const file = await this.request<GetImagesResponse>(endpoint);
     const { images = {} } = file;
     let success = false;
     if (images[nodeId]) {
       await downloadFigmaImage(fileName, localPath, images[nodeId]);
-      console.log(`Successfully save image`, localPath, fileName);
+      console.log(`Successfully saved image`, localPath, fileName);
       success = true;
     }
     return success;
@@ -59,7 +60,7 @@ export class FigmaService {
   async getFile(fileKey: string, depth?: number): Promise<SimplifiedDesign> {
     try {
       const endpoint = `/files/${fileKey}${depth ? `?depth=${depth}` : ""}`;
-      console.log(`Calling ${this.baseUrl}${endpoint}`);
+      console.log(`Retrieving Figma file: ${fileKey} (depth: ${depth ?? "default"})`);
       const response = await this.request<GetFileResponse>(endpoint);
       console.log("Got response");
       const simplifiedResponse = parseFigmaResponse(response);
@@ -67,7 +68,6 @@ export class FigmaService {
       writeLogs("figma-simplified.json", simplifiedResponse);
       return simplifiedResponse;
     } catch (e) {
-      console.log("hi?");
       console.error("Failed to get file:", e);
       throw e;
     }

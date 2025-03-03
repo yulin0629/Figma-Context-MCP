@@ -150,6 +150,7 @@ function parseGlobalVars(globalVars: GlobalVars, simplifiedNodes: SimplifiedNode
           Object.assign(parentNode, {
             id,
             type: "IMAGE",
+            mimeType: "svg",
           });
         }
       });

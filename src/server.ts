@@ -22,37 +22,6 @@ export class FigmaMcpServer {
   }
 
   private registerTools(): void {
-    this.server.tool(
-      "get_image",
-      "Get the icon file, Get images from Figma data based on the imageRef of image nodes",
-      {
-        fileKey: z.string().describe("The key of the Figma file containing the node"),
-        nodeId: z.string().describe("The ID of the node to fetch"),
-        fileName: z.string().describe("The name of the file to fetch"),
-        localPath: z
-          .string()
-          .describe("The absolute path to the directory where images are stored in the project"),
-      },
-      async ({ fileKey, nodeId, fileName, localPath }) => {
-        try {
-          console.log(`get image: ${nodeId} from file: ${fileKey}`);
-          const saveSuccess = await this.figmaService.getImage(
-            fileKey,
-            nodeId,
-            fileName,
-            localPath,
-          );
-          return {
-            content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
-          };
-        } catch (error) {
-          console.error(`Error download node ${nodeId} from file ${fileKey}:`, error);
-          return {
-            content: [{ type: "text", text: `Error fetching node: ${error}` }],
-          };
-        }
-      },
-    );
     // Tool to get file information
     this.server.tool(
       "get_file",
@@ -121,6 +90,47 @@ export class FigmaMcpServer {
           console.error(`Error fetching node ${nodeId} from file ${fileKey}:`, error);
           return {
             content: [{ type: "text", text: `Error fetching node: ${error}` }],
+          };
+        }
+      },
+    );
+
+    // Tool to download images
+    this.server.tool(
+      "download_images",
+      "Download SVG or PNG images from the Figma file based on the IDs of image or icon nodes",
+      {
+        fileKey: z.string().describe("The key of the Figma file containing the node"),
+        nodes: z
+          .object({
+            nodeId: z
+              .string()
+              .describe("The Figma ID of the node to fetch, formatted as 1234:5678"),
+            fileName: z.string().describe("The local name for saving the fetched file"),
+          })
+          .array()
+          .describe("The nodes to fetch as images"),
+        localPath: z
+          .string()
+          .describe("The absolute path to the directory where images are stored in the project"),
+      },
+      async ({ fileKey, nodes, localPath }) => {
+        try {
+          const downloads = nodes.map(({ nodeId, fileName }) => {
+            console.log(`get image "${nodeId}", saving to: ${localPath}/${fileName}`);
+            const fileType = fileName.endsWith(".svg") ? "svg" : "png";
+            return this.figmaService.getImage(fileKey, nodeId, fileName, localPath, fileType);
+          });
+
+          // If any download fails, return false
+          const saveSuccess = !(await Promise.all(downloads)).find((success) => !success);
+          return {
+            content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
+          };
+        } catch (error) {
+          console.error(`Error downloading images from file ${fileKey}:`, error);
+          return {
+            content: [{ type: "text", text: `Error downloading images: ${error}` }],
           };
         }
       },
