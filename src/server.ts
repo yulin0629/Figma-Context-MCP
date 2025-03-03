@@ -5,6 +5,7 @@ import express, { Request, Response } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { IncomingMessage, ServerResponse } from "http";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { SimplifiedDesign } from "./services/simplify-node-response";
 
 export class FigmaMcpServer {
   private readonly server: McpServer;
@@ -24,10 +25,20 @@ export class FigmaMcpServer {
   private registerTools(): void {
     // Tool to get file information
     this.server.tool(
-      "get_file",
+      "get_figma_data",
       "When the nodeId cannot be obtained, obtain the layout information about the entire Figma file",
       {
-        fileKey: z.string().describe("The key of the Figma file to fetch"),
+        fileKey: z
+          .string()
+          .describe(
+            "The key of the Figma file to fetch, often found in a provided URL like figma.com/(file|design)/<fileKey>/...",
+          ),
+        nodeId: z
+          .string()
+          .optional()
+          .describe(
+            "The ID of the node to fetch, often found as URL parameter node-id=<nodeId>, always use if provided",
+          ),
         depth: z
           .number()
           .optional()
@@ -35,17 +46,31 @@ export class FigmaMcpServer {
             "How many levels deep to traverse the node tree, only use if explicitly requested by the user",
           ),
       },
-      async ({ fileKey, depth }) => {
+      async ({ fileKey, nodeId, depth }) => {
         try {
-          console.log(`Fetching file: ${fileKey} (depth: ${depth ?? "default"})`);
-          const file = await this.figmaService.getFile(fileKey, depth);
+          console.log(
+            `Fetching ${
+              depth ? `${depth} layers deep` : "all layers"
+            } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey} at depth: ${
+              depth ?? "all layers"
+            }`,
+          );
+
+          let file: SimplifiedDesign;
+          if (nodeId) {
+            file = await this.figmaService.getNode(fileKey, nodeId, depth);
+          } else {
+            file = await this.figmaService.getFile(fileKey, depth);
+          }
+
           console.log(`Successfully fetched file: ${file.name}`);
-          const { nodes, ...metadata } = file;
+          const { nodes, globalVars, ...metadata } = file;
 
           // Stringify each node individually to try to avoid max string length error with big files
           const nodesJson = `[${nodes.map((node) => JSON.stringify(node, null, 2)).join(",")}]`;
           const metadataJson = JSON.stringify(metadata, null, 2);
-          const resultJson = `{ "metadata": ${metadataJson}, "nodes": ${nodesJson} }`;
+          const globalVarsJson = JSON.stringify(globalVars, null, 2);
+          const resultJson = `{ "metadata": ${metadataJson}, "nodes": ${nodesJson}, "globalVars": ${globalVarsJson} }`;
 
           return {
             content: [{ type: "text", text: resultJson }],
@@ -59,46 +84,10 @@ export class FigmaMcpServer {
       },
     );
 
-    // Tool to get node information
-    this.server.tool(
-      "get_node",
-      "Get layout information about a specific node in a Figma file",
-      {
-        fileKey: z
-          .string()
-          .describe(
-            "The key of the Figma file containing the node, often found in a provided URL like figma.com/(file|design)/<fileKey>/...",
-          ),
-        nodeId: z
-          .string()
-          .describe("The ID of the node to fetch, often found as URL parameter node-id=<nodeId>"),
-        depth: z.number().optional().describe("How many levels deep to traverse the node tree"),
-      },
-      async ({ fileKey, nodeId, depth }) => {
-        try {
-          console.log(
-            `Fetching node: ${nodeId} from file: ${fileKey} (depth: ${depth ?? "default"})`,
-          );
-          const node = await this.figmaService.getNode(fileKey, nodeId, depth);
-          console.log(
-            `Successfully fetched node: ${node.name} (ids: ${Object.keys(node.nodes).join(", ")})`,
-          );
-          return {
-            content: [{ type: "text", text: JSON.stringify(node, null, 2) }],
-          };
-        } catch (error) {
-          console.error(`Error fetching node ${nodeId} from file ${fileKey}:`, error);
-          return {
-            content: [{ type: "text", text: `Error fetching node: ${error}` }],
-          };
-        }
-      },
-    );
-
     // Tool to download images
     this.server.tool(
-      "download_images",
-      "Download SVG or PNG images from the Figma file based on the IDs of image or icon nodes",
+      "download_figma_images",
+      "Download SVG or PNG images used in a Figma file based on the IDs of image or icon nodes",
       {
         fileKey: z.string().describe("The key of the Figma file containing the node"),
         nodes: z
@@ -112,7 +101,9 @@ export class FigmaMcpServer {
           .describe("The nodes to fetch as images"),
         localPath: z
           .string()
-          .describe("The absolute path to the directory where images are stored in the project"),
+          .describe(
+            "The absolute path to the directory where images are stored in the project. Automatically creates directories if needed.",
+          ),
       },
       async ({ fileKey, nodes, localPath }) => {
         try {
