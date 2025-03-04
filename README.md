@@ -133,7 +133,7 @@ To inspect responses from the MCP server more easily, you can run the `inspect` 
 
 ```bash
 pnpm inspect
-# > figma-mcp@0.1.0 inspect
+# > figma-mcp@0.1.6 inspect
 # > pnpx @modelcontextprotocol/inspector
 #
 # Starting MCP inspector...
