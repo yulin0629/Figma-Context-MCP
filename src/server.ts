@@ -97,17 +97,24 @@ export class FigmaMcpServer {
       },
     );
 
+    // TODO: Clean up all image download related code, particularly getImages in Figma service
     // Tool to download images
     this.server.tool(
       "download_figma_images",
-      "Download SVG or PNG images used in a Figma file based on the IDs of image or icon nodes",
+      "Download SVG and PNG images used in a Figma file based on the IDs of image or icon nodes",
       {
         fileKey: z.string().describe("The key of the Figma file containing the node"),
         nodes: z
           .object({
             nodeId: z
               .string()
-              .describe("The Figma ID of the node to fetch, formatted as 1234:5678"),
+              .describe("The ID of the Figma image node to fetch, formatted as 1234:5678"),
+            imageRef: z
+              .string()
+              .optional()
+              .describe(
+                "If a node has an imageRef fill, you must include this variable. Leave blank when downloading Vector SVG images.",
+              ),
             fileName: z.string().describe("The local name for saving the fetched file"),
           })
           .array()
@@ -120,14 +127,26 @@ export class FigmaMcpServer {
       },
       async ({ fileKey, nodes, localPath }) => {
         try {
-          const downloads = nodes.map(({ nodeId, fileName }) => {
-            console.log(`get image "${nodeId}", saving to: ${localPath}/${fileName}`);
-            const fileType = fileName.endsWith(".svg") ? "svg" : "png";
-            return this.figmaService.getImage(fileKey, nodeId, fileName, localPath, fileType);
-          });
+          const imageFills = nodes.filter(({ imageRef }) => !!imageRef) as {
+            nodeId: string;
+            imageRef: string;
+            fileName: string;
+          }[];
+          const fillDownloads = this.figmaService.getImageFills(fileKey, imageFills, localPath);
+          const renderRequests = nodes
+            .filter(({ imageRef }) => !imageRef)
+            .map(({ nodeId, fileName }) => ({
+              nodeId,
+              fileName,
+              fileType: fileName.endsWith(".svg") ? ("svg" as const) : ("png" as const),
+            }));
+
+          const renderDownloads = this.figmaService.getImages(fileKey, renderRequests, localPath);
+
+          const downloads = await Promise.all([fillDownloads, renderDownloads]);
 
           // If any download fails, return false
-          const saveSuccess = !(await Promise.all(downloads)).find((success) => !success);
+          const saveSuccess = !downloads.find((success) => !success);
           return {
             content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
           };

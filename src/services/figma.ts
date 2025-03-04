@@ -16,6 +16,28 @@ export interface FigmaError {
   err: string;
 }
 
+type FetchImageParams = {
+  /**
+   * The Node in Figma that will either be rendered or have its background image downloaded
+   */
+  nodeId: string;
+  /**
+   * The local file name to save the image
+   */
+  fileName: string;
+  /**
+   * The file mimetype for the image
+   */
+  fileType: "png" | "svg";
+};
+
+type FetchImageFillParams = Omit<FetchImageParams, "fileType"> & {
+  /**
+   * Required to grab the background image when an image is used as a fill
+   */
+  imageRef: string;
+};
+
 export class FigmaService {
   private readonly apiKey: string;
   private readonly baseUrl = "https://api.figma.com/v1";
@@ -50,12 +72,12 @@ export class FigmaService {
     nodes: FetchImageFillParams[],
     localPath: string,
   ): Promise<boolean> {
+    if (nodes.length === 0) return true;
+
     let promises: Promise<string>[] = [];
     const endpoint = `/files/${fileKey}/images`;
     const file = await this.request<GetImageFillsResponse>(endpoint);
     const { images = {} } = file.meta;
-    // TODO: Download all images, output information about file name to reference ID back to AI
-    // TODO: Fix second half of image downloading
     promises = nodes.map(async ({ imageRef, fileName }) => {
       const imageUrl = images[imageRef];
       if (!imageUrl) {
@@ -67,30 +89,40 @@ export class FigmaService {
     return true;
   }
 
-  async getImages(fileKey: string, nodes: FetchImageParams[], localPath: string): Promise<boolean> {
+  async getImages(
+    fileKey: string,
+    nodes: FetchImageParams[],
+    localPath: string,
+  ): Promise<string[]> {
     const pngIds = nodes.filter(({ fileType }) => fileType === "png").map(({ nodeId }) => nodeId);
-    const pngFiles = this.request<GetImagesResponse>(
-      `/images/${fileKey}?ids=${pngIds.join(",")}&scale=2&format=png`,
-    ).then(({ images = {} }) => images);
+    const pngFiles =
+      pngIds.length > 0
+        ? this.request<GetImagesResponse>(
+            `/images/${fileKey}?ids=${pngIds.join(",")}&scale=2&format=png`,
+          ).then(({ images = {} }) => images)
+        : ({} as GetImagesResponse["images"]);
 
     const svgIds = nodes.filter(({ fileType }) => fileType === "svg").map(({ nodeId }) => nodeId);
-    const svgFiles = this.request<GetImagesResponse>(
-      `/images/${fileKey}?ids=${svgIds.join(",")}&scale=2&format=svg`,
-    ).then(({ images = {} }) => images);
+    const svgFiles =
+      svgIds.length > 0
+        ? this.request<GetImagesResponse>(
+            `/images/${fileKey}?ids=${svgIds.join(",")}&scale=2&format=svg`,
+          ).then(({ images = {} }) => images)
+        : ({} as GetImagesResponse["images"]);
 
     const files = await Promise.all([pngFiles, svgFiles]).then(([f, l]) => ({ ...f, ...l }));
 
-    const downloads = nodes.map(({ nodeId, fileName }) => {
-      const imageUrl = files[nodeId];
-      if (imageUrl) {
-        return downloadFigmaImage(fileName, localPath, imageUrl);
-      }
-      return "";
-    });
+    const downloads = nodes
+      .map(({ nodeId, fileName }) => {
+        const imageUrl = files[nodeId];
+        if (imageUrl) {
+          return downloadFigmaImage(fileName, localPath, imageUrl);
+        }
+        return false;
+      })
+      .filter((url) => !!url);
 
-    await Promise.all(downloads);
-    Logger.log(`Successfully saved images`);
-    return true;
+    return Promise.all(downloads);
   }
 
   async getFile(fileKey: string, depth?: number): Promise<SimplifiedDesign> {
