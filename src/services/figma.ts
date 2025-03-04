@@ -71,8 +71,8 @@ export class FigmaService {
     fileKey: string,
     nodes: FetchImageFillParams[],
     localPath: string,
-  ): Promise<boolean> {
-    if (nodes.length === 0) return true;
+  ): Promise<string[]> {
+    if (nodes.length === 0) return [];
 
     let promises: Promise<string>[] = [];
     const endpoint = `/files/${fileKey}/images`;
@@ -85,8 +85,7 @@ export class FigmaService {
       }
       return downloadFigmaImage(fileName, localPath, imageUrl);
     });
-    await Promise.all(promises);
-    return true;
+    return Promise.all(promises);
   }
 
   async getImages(

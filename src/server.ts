@@ -143,12 +143,22 @@ export class FigmaMcpServer {
 
           const renderDownloads = this.figmaService.getImages(fileKey, renderRequests, localPath);
 
-          const downloads = await Promise.all([fillDownloads, renderDownloads]);
+          const downloads = await Promise.all([fillDownloads, renderDownloads]).then(([f, r]) => [
+            ...f,
+            ...r,
+          ]);
 
           // If any download fails, return false
           const saveSuccess = !downloads.find((success) => !success);
           return {
-            content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
+            content: [
+              {
+                type: "text",
+                text: saveSuccess
+                  ? `Success, ${downloads.length} images downloaded: ${downloads.join(", ")}`
+                  : "Failed",
+              },
+            ],
           };
         } catch (error) {
           Logger.error(`Error downloading images from file ${fileKey}:`, error);
