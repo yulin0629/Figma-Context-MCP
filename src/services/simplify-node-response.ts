@@ -45,16 +45,6 @@ type StyleTypes =
   | string;
 type GlobalVars = {
   styles: Record<StyleId, StyleTypes>;
-  vectorParents?: Record<
-    string,
-    {
-      parentId: string;
-      parentName: string;
-      parentType: string;
-      childrenId: string;
-    }
-  >;
-  childrenToParents?: Record<string, string[]>;
 };
 export interface SimplifiedDesign {
   name: string;
@@ -119,50 +109,6 @@ export interface ColorValue {
   opacity: number;
 }
 
-function parseGlobalVars(globalVars: GlobalVars, simplifiedNodes: SimplifiedNode[]): GlobalVars {
-  // Reorganize vectorParents based on childrenId
-  const childrenToParents: Record<string, string[]> = {};
-
-  // Iterate through vectorParents, group by childrenId
-  Object.entries(globalVars.vectorParents ?? {}).forEach(([parentId, data]) => {
-    const { childrenId } = data as { childrenId: string };
-
-    if (!childrenToParents[childrenId]) {
-      childrenToParents[childrenId] = [];
-    }
-
-    childrenToParents[childrenId].push(parentId);
-  });
-
-  if (simplifiedNodes.length) {
-    // Process parent nodes with the same childrenId
-    Object.values(childrenToParents).forEach((parentIds) => {
-      // Find all parent nodes
-      parentIds.forEach((parentId) => {
-        let parentNode = findNodeById(parentId, simplifiedNodes);
-        // If parent node is found, modify it directly
-        if (parentNode) {
-          // Save original size information
-          const { id } = parentNode;
-          Object.keys(parentNode).forEach((key) => {
-            delete parentNode[key as keyof SimplifiedNode];
-          });
-          Object.assign(parentNode, {
-            id,
-            type: "IMAGE",
-            mimeType: "svg",
-          });
-        }
-      });
-    });
-  }
-
-  // Store grouping results in globalVars
-  globalVars.childrenToParents = childrenToParents;
-  delete globalVars.vectorParents;
-  return globalVars;
-}
-
 // ---------------------- PARSING ----------------------
 export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse): SimplifiedDesign {
   const { name, lastModified, thumbnailUrl } = data;
@@ -173,14 +119,12 @@ export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse)
     nodes = Object.values(data.nodes).map((n) => n.document);
   }
   let globalVars: GlobalVars = {
-    styles: {},
-    vectorParents: {},
+    styles: {}
   };
   const simplifiedNodes: SimplifiedNode[] = nodes
     .filter(isVisible)
     .map((n) => parseNode(globalVars, n))
     .filter((child) => child !== null && child !== undefined);
-  globalVars = parseGlobalVars(globalVars, simplifiedNodes);
 
   return {
     name,
@@ -321,25 +265,9 @@ function parseNode(
     }
   }
 
-  // Detect VECTOR type nodes and store their parent node information
+  // Convert VECTOR to IMAGE
   if (type === "VECTOR") {
-    // Cache VECTOR nodes, store directly using prefix
-    const { id: nodeId, ...vectorNodeData } = simplified;
-
-    // Check if similar nodes already exist (ignoring id)
-    const vectorId = findOrCreateVar(globalVars, vectorNodeData, "vector");
-
-    // If there is a parent node, store relationship information
-    if (parent) {
-      // Store parent node information of the VECTOR node
-      globalVars.vectorParents ??= {};
-      globalVars.vectorParents[parent.id] = {
-        parentId: parent.id,
-        parentName: parent.name,
-        parentType: parent.type,
-        childrenId: vectorId,
-      };
-    }
+    simplified.type = "IMAGE"
   }
 
   return removeEmptyKeys(simplified);
