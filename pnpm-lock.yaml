@@ -13,8 +13,8 @@ importers:
   .:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.6.0
-        version: 1.6.0
+        specifier: ^1.6.1
+        version: 1.6.1
       '@types/yargs':
         specifier: ^17.0.33
         version: 17.0.33
@@ -554,8 +554,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@modelcontextprotocol/sdk@1.6.0':
-    resolution: {integrity: sha512-585s8g+jzuGBomzgzDeP5l8gEyiSs+KhoAHbA2ZZ24Zgm83IZsyCLl/fmWhPHbfYsuLG8NE6SWGZA5ZBql8jSw==}
+  '@modelcontextprotocol/sdk@1.6.1':
+    resolution: {integrity: sha512-oxzMzYCkZHMntzuyerehK3fV6A2Kwh5BD6CGEJSVDU2QNEhfLOptf2X7esQgaHZXHZY0oHmMsOtIDLP71UJXgA==}
     engines: {node: '>=18'}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -2849,7 +2849,7 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.0
     optional: true
 
-  '@modelcontextprotocol/sdk@1.6.0':
+  '@modelcontextprotocol/sdk@1.6.1':
     dependencies:
       content-type: 1.0.5
       cors: 2.8.5

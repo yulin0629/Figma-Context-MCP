@@ -39,7 +39,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.6.0",
+    "@modelcontextprotocol/sdk": "^1.6.1",
     "@types/yargs": "^17.0.33",
     "axios": "^1.7.9",
     "cross-env": "^7.0.3",

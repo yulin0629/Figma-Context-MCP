@@ -51,7 +51,6 @@ export async function downloadFigmaImage(
     // Return a Promise that resolves when writing is complete
     return new Promise((resolve, reject) => {
       writer.on("finish", () => {
-        console.log(`Image saved to: ${fullPath}`);
         resolve(fullPath);
       });
 

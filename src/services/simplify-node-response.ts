@@ -14,8 +14,8 @@ import { buildSimplifiedEffects, SimplifiedEffects } from "~/transformers/effect
  * TDOO ITEMS
  *
  * - Improve layout handling—translate from Figma vocabulary to CSS
- * - Look up existing styles in new MCP endpoint—Figma supports individual lookups without enterprise /v1/styles/:key
- * - Support endpoint for getting SVG data from Figma, similar to images
+ * ? Look up existing styles in new MCP endpoint—Figma supports individual lookups without enterprise /v1/styles/:key
+ * ? Parse out and save .cursor/rules/design-tokens file on command
  **/
 
 // -------------------- SIMPLIFIED STRUCTURES --------------------
@@ -225,7 +225,7 @@ function parseNode(
   }
 
   const effects = buildSimplifiedEffects(n);
-  if (effects.boxShadow) {
+  if (Object.keys(effects).length) {
     simplified.effects = findOrCreateVar(globalVars, effects, "effect");
   }
 

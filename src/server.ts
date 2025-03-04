@@ -7,6 +7,11 @@ import { IncomingMessage, ServerResponse } from "http";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SimplifiedDesign } from "./services/simplify-node-response";
 
+export const Logger = {
+  log: (...args: any[]) => {},
+  error: (...args: any[]) => {},
+};
+
 export class FigmaMcpServer {
   private readonly server: McpServer;
   private readonly figmaService: FigmaService;
@@ -14,10 +19,18 @@ export class FigmaMcpServer {
 
   constructor(figmaApiKey: string) {
     this.figmaService = new FigmaService(figmaApiKey);
-    this.server = new McpServer({
-      name: "Figma MCP Server",
-      version: "0.1.5",
-    });
+    this.server = new McpServer(
+      {
+        name: "Figma MCP Server",
+        version: "0.1.5",
+      },
+      {
+        capabilities: {
+          logging: {},
+          tools: {},
+        },
+      },
+    );
 
     this.registerTools();
   }
@@ -48,7 +61,7 @@ export class FigmaMcpServer {
       },
       async ({ fileKey, nodeId, depth }) => {
         try {
-          console.log(
+          Logger.log(
             `Fetching ${
               depth ? `${depth} layers deep` : "all layers"
             } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey} at depth: ${
@@ -63,7 +76,7 @@ export class FigmaMcpServer {
             file = await this.figmaService.getFile(fileKey, depth);
           }
 
-          console.log(`Successfully fetched file: ${file.name}`);
+          Logger.log(`Successfully fetched file: ${file.name}`);
           const { nodes, globalVars, ...metadata } = file;
 
           // Stringify each node individually to try to avoid max string length error with big files
@@ -76,7 +89,7 @@ export class FigmaMcpServer {
             content: [{ type: "text", text: resultJson }],
           };
         } catch (error) {
-          console.error(`Error fetching file ${fileKey}:`, error);
+          Logger.error(`Error fetching file ${fileKey}:`, error);
           return {
             content: [{ type: "text", text: `Error fetching file: ${error}` }],
           };
@@ -119,7 +132,7 @@ export class FigmaMcpServer {
             content: [{ type: "text", text: saveSuccess ? "Success" : "Failed" }],
           };
         } catch (error) {
-          console.error(`Error downloading images from file ${fileKey}:`, error);
+          Logger.error(`Error downloading images from file ${fileKey}:`, error);
           return {
             content: [{ type: "text", text: `Error downloading images: ${error}` }],
           };
@@ -129,9 +142,23 @@ export class FigmaMcpServer {
   }
 
   async connect(transport: Transport): Promise<void> {
-    console.log("Connecting to transport...");
+    // Logger.log("Connecting to transport...");
     await this.server.connect(transport);
-    console.log("Server connected and ready to process requests");
+
+    Logger.log = (...args: any[]) => {
+      this.server.server.sendLoggingMessage({
+        level: "info",
+        data: args,
+      });
+    };
+    Logger.error = (...args: any[]) => {
+      this.server.server.sendLoggingMessage({
+        level: "error",
+        data: args,
+      });
+    };
+
+    Logger.log("Server connected and ready to process requests");
   }
 
   async startHttpServer(port: number): Promise<void> {
@@ -158,10 +185,13 @@ export class FigmaMcpServer {
       );
     });
 
+    Logger.log = console.log;
+    Logger.error = console.error;
+
     app.listen(port, () => {
-      console.log(`HTTP server listening on port ${port}`);
-      console.log(`SSE endpoint available at http://localhost:${port}/sse`);
-      console.log(`Message endpoint available at http://localhost:${port}/messages`);
+      Logger.log(`HTTP server listening on port ${port}`);
+      Logger.log(`SSE endpoint available at http://localhost:${port}/sse`);
+      Logger.log(`Message endpoint available at http://localhost:${port}/messages`);
     });
   }
 }
