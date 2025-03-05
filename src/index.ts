@@ -3,10 +3,10 @@ import { FigmaMcpServer } from "./server";
 import { getServerConfig } from "./config";
 
 export async function startServer(): Promise<void> {
-  const config = getServerConfig();
-
   // Check if we're running in stdio mode (e.g., via CLI)
   const isStdioMode = process.env.NODE_ENV === "cli" || process.argv.includes("--stdio");
+
+  const config = getServerConfig(isStdioMode);
 
   const server = new FigmaMcpServer(config.figmaApiKey);
 

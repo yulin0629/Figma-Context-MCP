@@ -24,7 +24,7 @@ interface CliArgs {
   port?: number;
 }
 
-export function getServerConfig(): ServerConfig {
+export function getServerConfig(isStdioMode: boolean): ServerConfig {
   // Parse command line arguments
   const argv = yargs(hideBin(process.argv))
     .options({
@@ -74,12 +74,14 @@ export function getServerConfig(): ServerConfig {
   }
 
   // Log configuration sources
-  console.log("\nConfiguration:");
-  console.log(
-    `- FIGMA_API_KEY: ${maskApiKey(config.figmaApiKey)} (source: ${config.configSources.figmaApiKey})`,
-  );
-  console.log(`- PORT: ${config.port} (source: ${config.configSources.port})`);
-  console.log(); // Empty line for better readability
+  if (!isStdioMode) {
+    console.log("\nConfiguration:");
+    console.log(
+      `- FIGMA_API_KEY: ${maskApiKey(config.figmaApiKey)} (source: ${config.configSources.figmaApiKey})`,
+    );
+    console.log(`- PORT: ${config.port} (source: ${config.configSources.port})`);
+    console.log(); // Empty line for better readability
+  }
 
   return config;
 }
