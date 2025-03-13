@@ -1,10 +1,10 @@
 {
   "name": "figma-developer-mcp",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Model Context Protocol server for Figma integration",
   "main": "dist/index.js",
   "bin": {
-    "figma-developer-mcp": "./dist/cli.js"
+    "figma-developer-mcp": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -25,11 +25,11 @@
     "pub:release": "pnpm build && npm publish"
   },
   "engines": {
-    "node": "^20.17.0"
+    "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/GLips/Figma-Context-MCP.git"
+    "url": "git+https://github.com/GLips/Figma-Context-MCP.git"
   },
   "keywords": [
     "figma",
@@ -64,11 +64,5 @@
     "tsc-alias": "^1.8.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "figma-mcp": "link:",
-      "figma-developer-mcp": "link:"
-    }
   }
 }
