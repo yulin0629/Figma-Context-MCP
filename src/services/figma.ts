@@ -1,4 +1,3 @@
-import axios, { AxiosError } from "axios";
 import fs from "fs";
 import { parseFigmaResponse, SimplifiedDesign } from "./simplify-node-response";
 import type {
@@ -8,7 +7,6 @@ import type {
   GetImageFillsResponse,
 } from "@figma/rest-api-spec";
 import { downloadFigmaImage } from "~/utils/common";
-import { partition } from "remeda";
 import { Logger } from "~/server";
 
 export interface FigmaError {
@@ -49,19 +47,23 @@ export class FigmaService {
   private async request<T>(endpoint: string): Promise<T> {
     try {
       Logger.log(`Calling ${this.baseUrl}${endpoint}`);
-      const response = await axios.get(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
           "X-Figma-Token": this.apiKey,
         },
       });
 
-      return response.data;
-    } catch (error) {
-      if (error instanceof AxiosError && error.response) {
+      if (!response.ok) {
         throw {
-          status: error.response.status,
-          err: (error.response.data as { err?: string }).err || "Unknown error",
+          status: response.status,
+          err: response.statusText || "Unknown error",
         } as FigmaError;
+      }
+
+      return await response.json();
+    } catch (error) {
+      if ((error as FigmaError).status) {
+        throw error;
       }
       throw new Error("Failed to make request to Figma API");
     }
@@ -143,6 +145,7 @@ export class FigmaService {
   async getNode(fileKey: string, nodeId: string, depth?: number): Promise<SimplifiedDesign> {
     const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}${depth ? `&depth=${depth}` : ""}`;
     const response = await this.request<GetFileNodesResponse>(endpoint);
+    Logger.log("Got response from getNode, now parsing.");
     writeLogs("figma-raw.json", response);
     const simplifiedResponse = parseFigmaResponse(response);
     writeLogs("figma-simplified.json", simplifiedResponse);

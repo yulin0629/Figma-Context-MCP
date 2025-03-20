@@ -1,6 +1,6 @@
 {
   "name": "figma-developer-mcp",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Model Context Protocol server for Figma integration",
   "main": "dist/index.js",
   "bin": {
@@ -41,7 +41,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
     "@types/yargs": "^17.0.33",
-    "axios": "^1.7.9",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

@@ -22,7 +22,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.8",
+        version: "0.1.9",
       },
       {
         capabilities: {
@@ -64,9 +64,7 @@ export class FigmaMcpServer {
           Logger.log(
             `Fetching ${
               depth ? `${depth} layers deep` : "all layers"
-            } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey} at depth: ${
-              depth ?? "all layers"
-            }`,
+            } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey}`,
           );
 
           let file: SimplifiedDesign;
@@ -204,7 +202,6 @@ export class FigmaMcpServer {
 
     app.post("/messages", async (req: Request, res: Response) => {
       if (!this.sseTransport) {
-        // @ts-expect-error Not sure why Express types aren't working
         res.sendStatus(400);
         return;
       }
