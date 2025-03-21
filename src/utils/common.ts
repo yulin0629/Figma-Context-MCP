@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import type { Paint, RGBA } from "@figma/rest-api-spec";
-import { CSSHexColor, CSSRGBAColor, SimplifiedFill } from "~/services/simplify-node-response";
+import { CSSHexColor, CSSRGBAColor, SimplifiedFill } from "~/services/simplify-node-response.js";
 
 export type StyleId = `${string}_${string}` & { __brand: "StyleId" };
 

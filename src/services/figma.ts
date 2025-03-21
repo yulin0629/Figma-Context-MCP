@@ -1,13 +1,13 @@
 import fs from "fs";
-import { parseFigmaResponse, SimplifiedDesign } from "./simplify-node-response";
+import { parseFigmaResponse, SimplifiedDesign } from "./simplify-node-response.js";
 import type {
   GetImagesResponse,
   GetFileResponse,
   GetFileNodesResponse,
   GetImageFillsResponse,
 } from "@figma/rest-api-spec";
-import { downloadFigmaImage } from "~/utils/common";
-import { Logger } from "~/server";
+import { downloadFigmaImage } from "~/utils/common.js";
+import { Logger } from "~/server.js";
 
 export interface FigmaError {
   status: number;
