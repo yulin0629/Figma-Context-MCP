@@ -22,7 +22,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.9",
+        version: "0.1.10",
       },
       {
         capabilities: {
