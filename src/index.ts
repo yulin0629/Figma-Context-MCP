@@ -27,12 +27,7 @@ export async function startServer(): Promise<void> {
   }
 }
 
-// If this file is being run directly, start the server
-const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
-
-if (isMainModule) {
-  startServer().catch((error) => {
-    console.error("Failed to start server:", error);
-    process.exit(1);
-  });
-}
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
