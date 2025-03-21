@@ -70,7 +70,10 @@ export class FigmaService {
       if ((error as FigmaError).status) {
         throw error;
       }
-      throw new Error("Failed to make request to Figma API");
+      if (error instanceof Error) {
+        throw new Error(`Failed to make request to Figma API: ${error.message}`);
+      }
+      throw new Error(`Failed to make request to Figma API: ${error}`);
     }
   }
 
