@@ -89,6 +89,7 @@ export class FigmaMcpServer {
         } catch (error) {
           Logger.error(`Error fetching file ${fileKey}:`, error);
           return {
+            isError: true,
             content: [{ type: "text", text: `Error fetching file: ${error}` }],
           };
         }
@@ -161,6 +162,7 @@ export class FigmaMcpServer {
         } catch (error) {
           Logger.error(`Error downloading images from file ${fileKey}:`, error);
           return {
+            isError: true,
             content: [{ type: "text", text: `Error downloading images: ${error}` }],
           };
         }

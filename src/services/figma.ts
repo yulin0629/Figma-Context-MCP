@@ -45,6 +45,11 @@ export class FigmaService {
   }
 
   private async request<T>(endpoint: string): Promise<T> {
+    if (typeof fetch !== "function") {
+      throw new Error(
+        "The MCP server is being run in a Node.js environment where `fetch` is not available. You won't be able to access any data related to the Figma file.\n\nAs the coding AI assistant, PLEASE ABORT THE CURRENT REQUEST. No alternate approaches will work. Help the user fix this issue so you can proceed by letting them know that they need to run the MCP server with Node.js version 18 or higher.",
+      );
+    }
     try {
       Logger.log(`Calling ${this.baseUrl}${endpoint}`);
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
