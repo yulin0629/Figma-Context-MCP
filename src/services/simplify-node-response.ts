@@ -11,7 +11,7 @@ import { removeEmptyKeys, generateVarId, StyleId, parsePaint, isVisible } from "
 import { buildSimplifiedStrokes, SimplifiedStroke } from "~/transformers/style.js";
 import { buildSimplifiedEffects, SimplifiedEffects } from "~/transformers/effects.js";
 /**
- * TDOO ITEMS
+ * TODO ITEMS
  *
  * - Improve layout handling—translate from Figma vocabulary to CSS
  * - Pull image fills/vectors out to top level for better AI visibility
