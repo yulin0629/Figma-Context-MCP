@@ -1,4 +1,4 @@
-<a href="https://www.framelink.ai/" target="_blank" rel="noopener">
+<a href="https://www.framelink.ai/?utm_source=github&utm_medium=readme&utm_campaign=readme" target="_blank" rel="noopener">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://www.framelink.ai/github/HeaderDark.png" />
     <img alt="Framelink" src="https://www.framelink.ai/github/HeaderLight.png" />
@@ -29,7 +29,7 @@ Give [Cursor](https://cursor.sh/), [Windsurf](https://codeium.com/windsurf), [Cl
 
 When Cursor has access to Figma design data, it's **way** better at one-shotting designs accurately than alternative approaches like pasting screenshots.
 
-<h3><a href="https://www.framelink.ai/docs/quickstart">See quickstart instructions →</a></h3>
+<h3><a href="https://www.framelink.ai/docs/quickstart?utm_source=github&utm_medium=readme&utm_campaign=readme">See quickstart instructions →</a></h3>
 
 ## Demo
 
@@ -82,7 +82,7 @@ The `figma-developer-mcp` server can be configured by adding the following to yo
 }
 ```
 
-If you need more information on how to configure the Framelink Figma MCP server, see the [Framelink docs](https://www.framelink.ai/docs/quickstart).
+If you need more information on how to configure the Framelink Figma MCP server, see the [Framelink docs](https://www.framelink.ai/docs/quickstart?utm_source=github&utm_medium=readme&utm_campaign=readme).
 
 ## Star History
 
@@ -90,4 +90,4 @@ If you need more information on how to configure the Framelink Figma MCP server,
 
 ## Learn More
 
-The Framelink Figma MCP server is simple but powerful. Get the most out of it by learning more at the [Framelink](https://framelink.ai) site.
+The Framelink Figma MCP server is simple but powerful. Get the most out of it by learning more at the [Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme) site.
