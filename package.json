@@ -1,27 +1,28 @@
 {
   "name": "figma-developer-mcp",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Model Context Protocol server for Figma integration",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "figma-developer-mcp": "dist/index.js"
+    "figma-developer-mcp": "dist/cli.js"
   },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup --dts",
     "type-check": "tsc --noEmit",
-    "start": "node dist/index.js",
-    "start:cli": "cross-env NODE_ENV=cli node dist/index.js",
-    "start:http": "node dist/index.js",
+    "start": "node dist/cli.js",
+    "start:cli": "cross-env NODE_ENV=cli node dist/cli.js",
+    "start:http": "node dist/cli.js",
     "dev": "cross-env NODE_ENV=development tsup --watch",
     "dev:cli": "cross-env NODE_ENV=development tsup --watch -- --stdio",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "inspect": "pnpx @modelcontextprotocol/inspector",
+    "prepack": "pnpm build",
     "pub:release": "pnpm build && npm publish"
   },
   "engines": {
@@ -39,6 +40,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@figma/rest-api-spec": "^0.24.0",
     "@modelcontextprotocol/sdk": "^1.6.1",
     "@types/yargs": "^17.0.33",
     "cross-env": "^7.0.3",
@@ -49,7 +51,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@figma/rest-api-spec": "^0.24.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.17.0",

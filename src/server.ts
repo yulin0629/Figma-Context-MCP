@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FigmaService } from "./services/figma.js";
 import express, { Request, Response } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { IncomingMessage, ServerResponse } from "http";
+import { IncomingMessage, ServerResponse, Server } from "http";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SimplifiedDesign } from "./services/simplify-node-response.js";
 
@@ -16,13 +16,14 @@ export class FigmaMcpServer {
   private readonly server: McpServer;
   private readonly figmaService: FigmaService;
   private sseTransport: SSEServerTransport | null = null;
+  private httpServer: Server | null = null;
 
   constructor(figmaApiKey: string) {
     this.figmaService = new FigmaService(figmaApiKey);
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.12",
+        version: "0.1.13",
       },
       {
         capabilities: {
@@ -78,19 +79,24 @@ export class FigmaMcpServer {
           const { nodes, globalVars, ...metadata } = file;
 
           // Stringify each node individually to try to avoid max string length error with big files
+          Logger.log(`Stringifying ${nodes.length} nodes.`);
           const nodesJson = `[${nodes.map((node) => JSON.stringify(node, null, 2)).join(",")}]`;
+          Logger.log(`Stringified ${nodes.length} nodes.`);
           const metadataJson = JSON.stringify(metadata, null, 2);
+          Logger.log(`Stringified metadata.`);
           const globalVarsJson = JSON.stringify(globalVars, null, 2);
+          Logger.log(`Stringified global vars.`);
           const resultJson = `{ "metadata": ${metadataJson}, "nodes": ${nodesJson}, "globalVars": ${globalVarsJson} }`;
 
           return {
             content: [{ type: "text", text: resultJson }],
           };
         } catch (error) {
-          Logger.error(`Error fetching file ${fileKey}:`, error);
+          const message = error instanceof Error ? error.message : JSON.stringify(error);
+          Logger.error(`Error fetching file ${fileKey}:`, message);
           return {
             isError: true,
-            content: [{ type: "text", text: `Error fetching file: ${error}` }],
+            content: [{ type: "text", text: `Error fetching file: ${message}` }],
           };
         }
       },
@@ -216,10 +222,28 @@ export class FigmaMcpServer {
     Logger.log = console.log;
     Logger.error = console.error;
 
-    app.listen(port, () => {
+    this.httpServer = app.listen(port, () => {
       Logger.log(`HTTP server listening on port ${port}`);
       Logger.log(`SSE endpoint available at http://localhost:${port}/sse`);
       Logger.log(`Message endpoint available at http://localhost:${port}/messages`);
+    });
+  }
+
+  async stopHttpServer(): Promise<void> {
+    if (!this.httpServer) {
+      throw new Error("HTTP server is not running");
+    }
+
+    return new Promise((resolve, reject) => {
+      this.httpServer!.close((err: Error | undefined) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        this.httpServer = null;
+        this.sseTransport = null;
+        resolve();
+      });
     });
   }
 }
