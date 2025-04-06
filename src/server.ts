@@ -15,7 +15,7 @@ export const Logger = {
 export class FigmaMcpServer {
   private readonly server: McpServer;
   private readonly figmaService: FigmaService;
-  private sseTransport: SSEServerTransport | null = null;
+  private transports: { [sessionId: string]: SSEServerTransport } = {};
   private httpServer: Server | null = null;
 
   constructor(figmaApiKey: string) {
@@ -23,7 +23,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.13",
+        version: "0.1.14",
       },
       {
         capabilities: {
@@ -200,23 +200,29 @@ export class FigmaMcpServer {
     const app = express();
 
     app.get("/sse", async (req: Request, res: Response) => {
-      console.log("New SSE connection established");
-      this.sseTransport = new SSEServerTransport(
+      console.log("Establishing new SSE connection");
+      const transport = new SSEServerTransport(
         "/messages",
         res as unknown as ServerResponse<IncomingMessage>,
       );
-      await this.server.connect(this.sseTransport);
+      console.log(`New SSE connection established for sessionId ${transport.sessionId}`);
+
+      this.transports[transport.sessionId] = transport;
+      res.on("close", () => {
+        delete this.transports[transport.sessionId];
+      });
+
+      await this.server.connect(transport);
     });
 
     app.post("/messages", async (req: Request, res: Response) => {
-      if (!this.sseTransport) {
-        res.sendStatus(400);
+      const sessionId = req.query.sessionId as string;
+      if (!this.transports[sessionId]) {
+        res.status(400).send(`No transport found for sessionId ${sessionId}`);
         return;
       }
-      await this.sseTransport.handlePostMessage(
-        req as unknown as IncomingMessage,
-        res as unknown as ServerResponse<IncomingMessage>,
-      );
+      console.log(`Received message for sessionId ${sessionId}`);
+      await this.transports[sessionId].handlePostMessage(req, res);
     });
 
     Logger.log = console.log;
@@ -241,8 +247,12 @@ export class FigmaMcpServer {
           return;
         }
         this.httpServer = null;
-        this.sseTransport = null;
-        resolve();
+        const closing = Object.values(this.transports).map((transport) => {
+          return transport.close();
+        });
+        Promise.all(closing).then(() => {
+          resolve();
+        });
       });
     });
   }
