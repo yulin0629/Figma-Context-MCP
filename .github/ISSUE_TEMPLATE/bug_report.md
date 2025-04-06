@@ -1,17 +1,26 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
+title: ""
 labels: bug
-assignees: ''
-
+assignees: ""
 ---
 
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+**Software Versions**
+
+- Figma Developer MCP: Run the MCP with `--version`—either npx or locally, depending on how you're running it.
+- Node.js: `node --version`
+- NPM: `npm --version`
+- Operating System:
+- Client: e.g. Cursor, VSCode, Claude Desktop, etc.
+- Client Version:
+
 **To Reproduce**
 Steps to reproduce the behavior:
+
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
@@ -39,6 +48,7 @@ Provide your MCP JSON configuration, if applicable. E.g.
 
 **Command Line Logs**
 If you're running the MCP locally on the command line, include all the logs for those like so:
+
 ```
 > npx figma-developer-mcp --figma-api-key=REDACTED
 
