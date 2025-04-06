@@ -6,6 +6,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { IncomingMessage, ServerResponse, Server } from "http";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SimplifiedDesign } from "./services/simplify-node-response.js";
+import yaml from "js-yaml";
 
 export const Logger = {
   log: (...args: any[]) => {},
@@ -23,7 +24,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.14",
+        version: "0.1.15",
       },
       {
         capabilities: {
@@ -78,18 +79,16 @@ export class FigmaMcpServer {
           Logger.log(`Successfully fetched file: ${file.name}`);
           const { nodes, globalVars, ...metadata } = file;
 
-          // Stringify each node individually to try to avoid max string length error with big files
-          Logger.log(`Stringifying ${nodes.length} nodes.`);
-          const nodesJson = `[${nodes.map((node) => JSON.stringify(node, null, 2)).join(",")}]`;
-          Logger.log(`Stringified ${nodes.length} nodes.`);
-          const metadataJson = JSON.stringify(metadata, null, 2);
-          Logger.log(`Stringified metadata.`);
-          const globalVarsJson = JSON.stringify(globalVars, null, 2);
-          Logger.log(`Stringified global vars.`);
-          const resultJson = `{ "metadata": ${metadataJson}, "nodes": ${nodesJson}, "globalVars": ${globalVarsJson} }`;
+          const result = {
+            metadata,
+            nodes,
+            globalVars,
+          };
+
+          const yamlResult = yaml.dump(result);
 
           return {
-            content: [{ type: "text", text: resultJson }],
+            content: [{ type: "text", text: yamlResult }],
           };
         } catch (error) {
           const message = error instanceof Error ? error.message : JSON.stringify(error);
