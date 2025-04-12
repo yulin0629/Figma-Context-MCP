@@ -31,7 +31,7 @@
 
 <br/>
 
-[Cursor](https://cursor.sh/), [Windsurf](https://codeium.com/windsurf), [Cline](https://cline.bot/) 및 기타 AI 기반 코딩 도구에 [Model Context Protocol](https://modelcontextprotocol.io/introduction) 서버를 통해 Figma 파일에 대한 접근 권한을 부여하세요.
+[Cursor](https://cursor.sh/) 및 기타 AI 기반 코딩 도구에 [Model Context Protocol](https://modelcontextprotocol.io/introduction) 서버를 통해 Figma 파일에 대한 접근 권한을 부여하세요.
 
 Cursor가 Figma 디자인 데이터에 접근할 수 있을 때, 스크린샷을 붙여넣는 것과 같은 대안적인 접근 방식보다 **훨씬** 더 정확하게 디자인을 한 번에 구현할 수 있습니다.
 
@@ -96,4 +96,4 @@ Framelink Figma MCP 서버를 구성하는 방법에 대한 자세한 정보가 
 
 ## 더 알아보기
 
-Framelink Figma MCP 서버는 단순하지만 강력합니다. [Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme) 사이트에서 더 많은 정보를 얻으세요. 
+Framelink Figma MCP 서버는 단순하지만 강력합니다. [Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme) 사이트에서 더 많은 정보를 얻으세요.

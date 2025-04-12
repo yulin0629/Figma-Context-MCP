@@ -31,7 +31,7 @@
 
 <br/>
 
-[Cursor](https://cursor.sh/)、[Windsurf](https://codeium.com/windsurf)、[Cline](https://cline.bot/)などのAI搭載コーディングツールに、この[Model Context Protocol](https://modelcontextprotocol.io/introduction)サーバーを通じてFigmaファイルへのアクセスを提供します。
+[Cursor](https://cursor.sh/)と他のAI搭載コーディングツールに、この[Model Context Protocol](https://modelcontextprotocol.io/introduction)サーバーを通じてFigmaファイルへのアクセスを提供します。
 
 CursorがFigmaデザインデータにアクセスできる場合、スクリーンショットを貼り付けるなどの代替アプローチよりも**はるかに**正確にワンショットでデザインを実装できます。
 
@@ -96,4 +96,4 @@ Framelink Figma MCPサーバーの設定方法の詳細については、[Framel
 
 ## 詳細情報
 
-Framelink Figma MCPサーバーはシンプルですが強力です。[Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme)サイトで詳細情報をご覧ください。 
+Framelink Figma MCPサーバーはシンプルですが強力です。[Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme)サイトで詳細情報をご覧ください。

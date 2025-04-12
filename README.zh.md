@@ -31,7 +31,7 @@
 
 <br/>
 
-通过此 [Model Context Protocol](https://modelcontextprotocol.io/introduction) 服务器，为 [Cursor](https://cursor.sh/)、[Windsurf](https://codeium.com/windsurf)、[Cline](https://cline.bot/) 和其他 AI 驱动的编码工具提供 Figma 文件访问权限。
+通过此 [Model Context Protocol](https://modelcontextprotocol.io/introduction) 服务器，为 [Cursor](https://cursor.sh/) 和其他 AI 驱动的编码工具提供 Figma 文件访问权限。
 
 当 Cursor 可以访问 Figma 设计数据时，它比粘贴截图等替代方法**更**能一次性准确实现设计。
 
@@ -96,4 +96,4 @@
 
 ## 了解更多
 
-Framelink Figma MCP 服务器简单但功能强大。在 [Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme) 网站上了解更多信息。 
+Framelink Figma MCP 服务器简单但功能强大。在 [Framelink](https://framelink.ai?utm_source=github&utm_medium=readme&utm_campaign=readme) 网站上了解更多信息。
