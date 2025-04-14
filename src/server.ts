@@ -24,7 +24,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.15",
+        version: "0.1.16",
       },
       {
         capabilities: {
@@ -85,8 +85,10 @@ export class FigmaMcpServer {
             globalVars,
           };
 
+          Logger.log("Generating YAML result from file");
           const yamlResult = yaml.dump(result);
 
+          Logger.log("Sending result to client");
           return {
             content: [{ type: "text", text: yamlResult }],
           };
@@ -176,20 +178,31 @@ export class FigmaMcpServer {
   }
 
   async connect(transport: Transport): Promise<void> {
-    // Logger.log("Connecting to transport...");
     await this.server.connect(transport);
 
     Logger.log = (...args: any[]) => {
-      this.server.server.sendLoggingMessage({
-        level: "info",
-        data: args,
-      });
+      // this.server.server.sendLoggingMessage({
+      //   level: "info",
+      //   data: args,
+      // });
+      console.error("[INFO]", ...args);
     };
     Logger.error = (...args: any[]) => {
-      this.server.server.sendLoggingMessage({
-        level: "error",
-        data: args,
-      });
+      // this.server.server.sendLoggingMessage({
+      //   level: "error",
+      //   data: args,
+      // });
+      console.error("[ERROR]", ...args);
+    };
+
+    // Ensure stdout is only used for JSON messages
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (chunk: any, encoding?: any, callback?: any) => {
+      // Only allow JSON messages to pass through
+      if (typeof chunk === "string" && !chunk.startsWith("{")) {
+        return true; // Silently skip non-JSON messages
+      }
+      return originalStdoutWrite(chunk, encoding, callback);
     };
 
     Logger.log("Server connected and ready to process requests");
