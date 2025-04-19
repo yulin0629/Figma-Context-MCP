@@ -14,7 +14,7 @@ export const Logger = {
 };
 
 export class FigmaMcpServer {
-  private readonly server: McpServer;
+  public readonly server: McpServer;
   private readonly figmaService: FigmaService;
   private transports: { [sessionId: string]: SSEServerTransport } = {};
   private httpServer: Server | null = null;
@@ -24,7 +24,7 @@ export class FigmaMcpServer {
     this.server = new McpServer(
       {
         name: "Figma MCP Server",
-        version: "0.1.16",
+        version: "0.1.17",
       },
       {
         capabilities: {
