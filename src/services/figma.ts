@@ -116,7 +116,7 @@ export class FigmaService {
     const svgFiles =
       svgIds.length > 0
         ? this.request<GetImagesResponse>(
-            `/images/${fileKey}?ids=${svgIds.join(",")}&scale=2&format=svg`,
+            `/images/${fileKey}?ids=${svgIds.join(",")}&format=svg`,
           ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
