@@ -4,7 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { config } from "dotenv";
 import { resolve } from "path";
 import { getServerConfig } from "./config.js";
-import { FigmaMcpServer } from "./server.js";
+import { startHttpServer } from "./server.js";
+import { FigmaMcpServer } from "./mcp.js";
 
 // Load .env from the current working directory
 config({ path: resolve(process.cwd(), ".env") });
@@ -22,7 +23,7 @@ export async function startServer(): Promise<void> {
     await server.connect(transport);
   } else {
     console.log(`Initializing Figma MCP Server in HTTP mode on port ${config.port}...`);
-    await server.startHttpServer(config.port);
+    await startHttpServer(config.port, server);
   }
 }
 

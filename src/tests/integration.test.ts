@@ -1,4 +1,4 @@
-import { FigmaMcpServer } from "../server.js";
+import { FigmaMcpServer } from "../mcp.js";
 import { config } from "dotenv";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
