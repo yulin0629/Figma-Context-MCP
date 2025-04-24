@@ -8,7 +8,7 @@ import { Logger } from "./index.js";
 
 const serverInfo = {
   name: "Figma MCP Server",
-  version: "0.2.0",
+  version: "0.2.1",
 };
 
 const serverOptions = {
@@ -45,7 +45,7 @@ export class FigmaMcpServer extends McpServer {
           ),
         depth: z
           .number()
-          .nullish()
+          .optional()
           .describe(
             "How many levels deep to traverse the node tree, only use if explicitly requested by the user",
           ),
@@ -106,7 +106,7 @@ export class FigmaMcpServer extends McpServer {
               .describe("The ID of the Figma image node to fetch, formatted as 1234:5678"),
             imageRef: z
               .string()
-              .nullish()
+              .optional()
               .describe(
                 "If a node has an imageRef fill, you must include this variable. Leave blank when downloading Vector SVG images.",
               ),

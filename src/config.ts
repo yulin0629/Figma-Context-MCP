@@ -38,7 +38,7 @@ export function getServerConfig(isStdioMode: boolean): ServerConfig {
       },
     })
     .help()
-    .version("0.2.0")
+    .version("0.2.1")
     .parseSync() as CliArgs;
 
   const config: ServerConfig = {
