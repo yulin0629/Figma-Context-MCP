@@ -8,7 +8,7 @@ import { Logger } from "./index.js";
 
 const serverInfo = {
   name: "Figma MCP Server",
-  version: "0.1.18",
+  version: "0.2.0",
 };
 
 const serverOptions = {

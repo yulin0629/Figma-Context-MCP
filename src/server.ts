@@ -13,18 +13,20 @@ const transports = {
   sse: {} as Record<string, SSEServerTransport>,
 };
 
-export async function startHttpServer(port: number, server: McpServer): Promise<void> {
+export async function startHttpServer(port: number, mcpServer: McpServer): Promise<void> {
   const app = express();
-  app.use(express.json());
+
+  // Parse JSON requests for the Streamable HTTP endpoint only, will break SSE endpoint
+  app.use("/mcp", express.json());
 
   // Modern Streamable HTTP endpoint
   app.post("/mcp", async (req, res) => {
     Logger.log("Received StreamableHTTP request");
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    Logger.log("Session ID:", sessionId);
-    Logger.log("Headers:", req.headers);
-    Logger.log("Body:", req.body);
-    Logger.log("Is Initialize Request:", isInitializeRequest(req.body));
+    // Logger.log("Session ID:", sessionId);
+    // Logger.log("Headers:", req.headers);
+    // Logger.log("Body:", req.body);
+    // Logger.log("Is Initialize Request:", isInitializeRequest(req.body));
     let transport: StreamableHTTPServerTransport;
 
     if (sessionId && transports.streamable[sessionId]) {
@@ -45,7 +47,8 @@ export async function startHttpServer(port: number, server: McpServer): Promise<
           delete transports.streamable[transport.sessionId];
         }
       };
-      await server.connect(transport);
+      // TODO? There semes to be an issue—at least in Cursor—where after a connection is made to an HTTP Streamable endpoint, SSE connections to the same Express server fail with "Received a response for an unknown message ID"
+      await mcpServer.connect(transport);
     } else {
       // Invalid request
       Logger.log("Invalid request:", req.body);
@@ -62,13 +65,15 @@ export async function startHttpServer(port: number, server: McpServer): Promise<
 
     let progressInterval: NodeJS.Timeout | null = null;
     const progressToken = req.body.params?._meta?.progressToken;
+    // Logger.log("Progress token:", progressToken);
     let progress = 0;
     if (progressToken) {
       Logger.log(
         `Setting up progress notifications for token ${progressToken} on session ${sessionId}`,
       );
       progressInterval = setInterval(async () => {
-        await server.server.notification({
+        Logger.log("Sending progress notification", progress);
+        await mcpServer.server.notification({
           method: "notifications/progress",
           params: {
             progress,
@@ -89,27 +94,7 @@ export async function startHttpServer(port: number, server: McpServer): Promise<
   });
 
   // Handle GET requests for SSE streams (using built-in support from StreamableHTTP)
-  app.get("/mcp", async (req: Request, res: Response) => {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    if (!sessionId || !transports.streamable[sessionId]) {
-      res.status(400).send("Invalid or missing session ID");
-      return;
-    }
-
-    // Check for Last-Event-ID header for resumability
-    const lastEventId = req.headers["last-event-id"] as string | undefined;
-    if (lastEventId) {
-      console.log(`Client reconnecting with Last-Event-ID: ${lastEventId}`);
-    } else {
-      console.log(`Establishing new SSE stream for session ${sessionId}`);
-    }
-
-    const transport = transports.streamable[sessionId];
-    await transport.handleRequest(req, res);
-  });
-
-  // Handle DELETE requests for streamable session termination (according to MCP spec)
-  app.delete("/mcp", async (req: Request, res: Response) => {
+  const handleSessionRequest = async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     if (!sessionId || !transports.streamable[sessionId]) {
       res.status(400).send("Invalid or missing session ID");
@@ -127,26 +112,36 @@ export async function startHttpServer(port: number, server: McpServer): Promise<
         res.status(500).send("Error processing session termination");
       }
     }
-  });
+  };
 
-  app.get("/sse", async (req: Request, res: Response) => {
+  // Handle GET requests for server-to-client notifications via SSE
+  app.get("/mcp", handleSessionRequest);
+
+  // Handle DELETE requests for session termination
+  app.delete("/mcp", handleSessionRequest);
+
+  app.get("/sse", async (req, res) => {
     Logger.log("Establishing new SSE connection");
     const transport = new SSEServerTransport("/messages", res);
     Logger.log(`New SSE connection established for sessionId ${transport.sessionId}`);
+    Logger.log("/sse request headers:", req.headers);
+    Logger.log("/sse request body:", req.body);
 
     transports.sse[transport.sessionId] = transport;
     res.on("close", () => {
       delete transports.sse[transport.sessionId];
     });
 
-    await server.connect(transport);
+    await mcpServer.connect(transport);
   });
 
-  app.post("/messages", async (req: Request, res: Response) => {
+  app.post("/messages", async (req, res) => {
     const sessionId = req.query.sessionId as string;
     const transport = transports.sse[sessionId];
     if (transport) {
-      Logger.log(`Received message for sessionId ${sessionId}`);
+      Logger.log(`Received SSE message for sessionId ${sessionId}`);
+      Logger.log("/messages request headers:", req.headers);
+      Logger.log("/messages request body:", req.body);
       await transport.handlePostMessage(req, res);
     } else {
       res.status(400).send(`No transport found for sessionId ${sessionId}`);
