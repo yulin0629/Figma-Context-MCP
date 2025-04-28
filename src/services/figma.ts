@@ -1,5 +1,5 @@
 import fs from "fs";
-import { parseFigmaResponse, SimplifiedDesign } from "./simplify-node-response.js";
+import { parseFigmaResponse, type SimplifiedDesign } from "./simplify-node-response.js";
 import type {
   GetImagesResponse,
   GetFileResponse,
