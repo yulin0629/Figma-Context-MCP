@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FigmaService } from "./services/figma.js";
 import type { SimplifiedDesign } from "./services/simplify-node-response.js";
 import yaml from "js-yaml";
-import { Logger } from "./index.js";
+import { Logger } from "./utils/logger.js";
 
 const serverInfo = {
   name: "Figma MCP Server",
@@ -14,10 +14,13 @@ const serverOptions = {
   capabilities: { logging: {}, tools: {} },
 };
 
-function createServer(figmaApiKey: string) {
+function createServer(figmaApiKey: string, { isHTTP = false }: { isHTTP?: boolean } = {}) {
   const server = new McpServer(serverInfo, serverOptions);
   const figmaService = new FigmaService(figmaApiKey);
   registerTools(server, figmaService);
+
+  Logger.isHTTP = isHTTP;
+
   return server;
 }
 
