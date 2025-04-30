@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "figma-developer-mcp": "0.2.1"
+  },
+  "changesets": [
+    "petite-laws-hear"
+  ]
+}

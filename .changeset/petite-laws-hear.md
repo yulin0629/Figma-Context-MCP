@@ -2,4 +2,5 @@
 "figma-developer-mcp": patch
 ---
 
-Update HTTP server creation method, change logging behavior
+- Update HTTP server creation method to no longer subclass McpServer
+- Change logging behavior on HTTP server

@@ -15,7 +15,7 @@ const serverOptions = {
 };
 
 function createServer(figmaApiKey: string, { isHTTP = false }: { isHTTP?: boolean } = {}) {
-  const server = new McpServer(serverInfo, serverOptions);
+  const server = new McpServer(serverInfo);
   const figmaService = new FigmaService(figmaApiKey);
   registerTools(server, figmaService);
 
