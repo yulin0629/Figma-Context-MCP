@@ -1,6 +1,6 @@
 {
   "name": "figma-developer-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2-beta.0",
   "description": "Model Context Protocol server for Figma integration",
   "type": "module",
   "main": "dist/index.js",
@@ -26,9 +26,10 @@
     "prepack": "pnpm build",
     "changeset": "changeset add",
     "version": "changeset version && git add -A",
+    "beta:start": "changeset pre enter beta",
+    "beta:end": "changeset pre exit",
     "prerelease": "pnpm build",
     "release": "changeset publish && git push --follow-tags",
-    "release:beta": "changeset pre enter beta && pnpm run release && changeset pre exit",
     "pub:release": "pnpm build && npm publish",
     "pub:release:beta": "pnpm build && npm publish --tag beta"
   },
