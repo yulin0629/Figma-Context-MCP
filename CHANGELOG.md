@@ -1,5 +1,11 @@
 # figma-developer-mcp
 
+## 0.2.2-beta.1
+
+### Patch Changes
+
+- 6e2c8f5: Minor bump, testing fix for hanging CF DOs
+
 ## 0.2.2-beta.0
 
 ### Patch Changes
