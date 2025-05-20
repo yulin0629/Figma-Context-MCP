@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { FigmaService } from "./services/figma.js";
+import { FigmaService, type FigmaAuthOptions } from "./services/figma.js";
 import type { SimplifiedDesign } from "./services/simplify-node-response.js";
 import yaml from "js-yaml";
 import { Logger } from "./utils/logger.js";
@@ -10,13 +10,13 @@ const serverInfo = {
   version: "0.2.1",
 };
 
-const serverOptions = {
-  capabilities: { logging: {}, tools: {} },
-};
-
-function createServer(figmaApiKey: string, { isHTTP = false }: { isHTTP?: boolean } = {}) {
+function createServer(
+  authOptions: FigmaAuthOptions,
+  { isHTTP = false }: { isHTTP?: boolean } = {},
+) {
   const server = new McpServer(serverInfo);
-  const figmaService = new FigmaService(figmaApiKey);
+  // const figmaService = new FigmaService(figmaApiKey);
+  const figmaService = new FigmaService(authOptions);
   registerTools(server, figmaService);
 
   Logger.isHTTP = isHTTP;
