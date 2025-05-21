@@ -167,7 +167,7 @@ export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse)
     .map((n) => parseNode(globalVars, n))
     .filter((child) => child !== null && child !== undefined);
 
-  return {
+  const simplifiedDesign: SimplifiedDesign = {
     name,
     lastModified,
     thumbnailUrl: thumbnailUrl || "",
@@ -176,6 +176,8 @@ export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse)
     componentSets: sanitizedComponentSets,
     globalVars,
   };
+
+  return removeEmptyKeys(simplifiedDesign);
 }
 
 // Helper function to find node by ID
@@ -322,5 +324,5 @@ function parseNode(
     simplified.type = "IMAGE-SVG";
   }
 
-  return removeEmptyKeys(simplified);
+  return simplified;
 }
