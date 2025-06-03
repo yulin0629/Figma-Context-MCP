@@ -112,20 +112,42 @@ function registerTools(server: McpServer, figmaService: FigmaService): void {
         })
         .array()
         .describe("The nodes to fetch as images"),
-      scale: z
+      pngScale: z
         .number()
         .positive()
         .optional()
+        .default(2)
         .describe(
-          "Export scale for PNG images. Optional, generally 2 is best, though users may specify a different scale.",
+          "Export scale for PNG images. Optional, defaults to 2 if not specified. Affects PNG images only.",
         ),
       localPath: z
         .string()
         .describe(
           "The absolute path to the directory where images are stored in the project. If the directory does not exist, it will be created. The format of this path should respect the directory format of the operating system you are running on. Don't use any special character escaping in the path name either.",
         ),
+      svgOptions: z
+        .object({
+          outlineText: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Whether to outline text in SVG exports. Default is true."),
+          includeId: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Whether to include IDs in SVG exports. Default is false."),
+          simplifyStroke: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Whether to simplify strokes in SVG exports. Default is true."),
+        })
+        .optional()
+        .default({})
+        .describe("Options for SVG export"),
     },
-    async ({ fileKey, nodes, scale, localPath }) => {
+    async ({ fileKey, nodes, localPath, svgOptions, pngScale }) => {
       try {
         const imageFills = nodes.filter(({ imageRef }) => !!imageRef) as {
           nodeId: string;
@@ -141,7 +163,13 @@ function registerTools(server: McpServer, figmaService: FigmaService): void {
             fileType: fileName.endsWith(".svg") ? ("svg" as const) : ("png" as const),
           }));
 
-        const renderDownloads = figmaService.getImages(fileKey, renderRequests, localPath, scale);
+        const renderDownloads = figmaService.getImages(
+          fileKey,
+          renderRequests,
+          localPath,
+          pngScale,
+          svgOptions,
+        );
 
         const downloads = await Promise.all([fillDownloads, renderDownloads]).then(([f, r]) => [
           ...f,

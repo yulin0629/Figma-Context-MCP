@@ -104,22 +104,35 @@ export class FigmaService {
     fileKey: string,
     nodes: FetchImageParams[],
     localPath: string,
-    scale: number = 2,
+    pngScale: number,
+    svgOptions: {
+      outlineText: boolean;
+      includeId: boolean;
+      simplifyStroke: boolean;
+    },
   ): Promise<string[]> {
     const pngIds = nodes.filter(({ fileType }) => fileType === "png").map(({ nodeId }) => nodeId);
     const pngFiles =
       pngIds.length > 0
         ? this.request<GetImagesResponse>(
-            `/images/${fileKey}?ids=${pngIds.join(",")}&scale=${scale}&format=png`,
+            `/images/${fileKey}?ids=${pngIds.join(",")}&format=png&scale=${pngScale}`,
           ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
     const svgIds = nodes.filter(({ fileType }) => fileType === "svg").map(({ nodeId }) => nodeId);
+    const svgParams = [
+      `ids=${svgIds.join(",")}`,
+      "format=svg",
+      `svg_outline_text=${svgOptions.outlineText}`,
+      `svg_include_id=${svgOptions.includeId}`,
+      `svg_simplify_stroke=${svgOptions.simplifyStroke}`,
+    ].join("&");
+
     const svgFiles =
       svgIds.length > 0
-        ? this.request<GetImagesResponse>(
-            `/images/${fileKey}?ids=${svgIds.join(",")}&format=svg`,
-          ).then(({ images = {} }) => images)
+        ? this.request<GetImagesResponse>(`/images/${fileKey}?${svgParams}`).then(
+            ({ images = {} }) => images,
+          )
         : ({} as GetImagesResponse["images"]);
 
     const files = await Promise.all([pngFiles, svgFiles]).then(([f, l]) => ({ ...f, ...l }));
