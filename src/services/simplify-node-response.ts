@@ -5,6 +5,7 @@ import type {
   Paint,
   Vector,
   GetFileResponse,
+  ComponentPropertyType,
   Component,
   ComponentSet,
 } from "@figma/rest-api-spec";
@@ -61,6 +62,7 @@ type StyleTypes =
 type GlobalVars = {
   styles: Record<StyleId, StyleTypes>;
 };
+
 export interface SimplifiedDesign {
   name: string;
   lastModified: string;
@@ -69,6 +71,12 @@ export interface SimplifiedDesign {
   components: Record<string, SimplifiedComponentDefinition>;
   componentSets: Record<string, SimplifiedComponentSetDefinition>;
   globalVars: GlobalVars;
+}
+
+export interface ComponentProperties {
+  name: string;
+  value: string;
+  type: ComponentPropertyType;
 }
 
 export interface SimplifiedNode {
@@ -92,7 +100,7 @@ export interface SimplifiedNode {
   // backgroundColor?: ColorValue; // Deprecated by Figma API
   // for rect-specific strokes, etc.
   componentId?: string;
-  componentProperties?: Record<string, any>;
+  componentProperties?: ComponentProperties[];
   // children
   children?: SimplifiedNode[];
 }
@@ -239,8 +247,16 @@ function parseNode(
     if (hasValue("componentId", n)) {
       simplified.componentId = n.componentId;
     }
+
+    // Add specific properties for instances of components
     if (hasValue("componentProperties", n)) {
-      simplified.componentProperties = n.componentProperties;
+      simplified.componentProperties = Object.entries(n.componentProperties ?? {}).map(
+        ([name, { value, type }]) => ({
+          name,
+          value: value.toString(),
+          type,
+        }),
+      );
     }
   }
 
@@ -308,8 +324,9 @@ function parseNode(
     simplified.borderRadius = `${n.rectangleCornerRadii[0]}px ${n.rectangleCornerRadii[1]}px ${n.rectangleCornerRadii[2]}px ${n.rectangleCornerRadii[3]}px`;
   }
 
-  // Recursively process child nodes
-  if (hasValue("children", n) && Array.isArray(n.children) && n.children.length > 0) {
+  // Recursively process child nodes.
+  // Include children at the very end so all relevant configuration data for the element is output first and kept together for the AI.
+  if (hasValue("children", n) && n.children.length > 0) {
     const children = n.children
       .filter(isVisible)
       .map((child) => parseNode(globalVars, child, n))
