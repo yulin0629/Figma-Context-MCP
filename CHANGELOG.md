@@ -1,5 +1,11 @@
 # figma-developer-mcp
 
+## 0.4.1
+
+### Patch Changes
+
+- [#161](https://github.com/GLips/Figma-Context-MCP/pull/161) [`8d34c6c`](https://github.com/GLips/Figma-Context-MCP/commit/8d34c6c23df3b2be5d5366723aeefdc2cca0a904) Thanks [@YossiSaadi](https://github.com/YossiSaadi)! - Add --json CLI flag and OUTPUT_FORMAT env var to support JSON output format in addition to YAML.
+
 ## 0.4.0
 
 ### Minor Changes
