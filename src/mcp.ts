@@ -10,21 +10,30 @@ const serverInfo = {
   version: process.env.NPM_PACKAGE_VERSION ?? "unknown",
 };
 
+type CreateServerOptions = {
+  isHTTP?: boolean;
+  outputFormat?: "yaml" | "json";
+};
+
 function createServer(
   authOptions: FigmaAuthOptions,
-  { isHTTP = false }: { isHTTP?: boolean } = {},
+  { isHTTP = false, outputFormat = "yaml" }: CreateServerOptions = {},
 ) {
   const server = new McpServer(serverInfo);
   // const figmaService = new FigmaService(figmaApiKey);
   const figmaService = new FigmaService(authOptions);
-  registerTools(server, figmaService);
+  registerTools(server, figmaService, outputFormat);
 
   Logger.isHTTP = isHTTP;
 
   return server;
 }
 
-function registerTools(server: McpServer, figmaService: FigmaService): void {
+function registerTools(
+  server: McpServer,
+  figmaService: FigmaService,
+  outputFormat: "yaml" | "json",
+): void {
   // Tool to get file information
   server.tool(
     "get_figma_data",
@@ -72,12 +81,13 @@ function registerTools(server: McpServer, figmaService: FigmaService): void {
           globalVars,
         };
 
-        Logger.log("Generating YAML result from file");
-        const yamlResult = yaml.dump(result);
+        Logger.log(`Generating ${outputFormat.toUpperCase()} result from file`);
+        const formattedResult =
+          outputFormat === "json" ? JSON.stringify(result, null, 2) : yaml.dump(result);
 
         Logger.log("Sending result to client");
         return {
-          content: [{ type: "text", text: yamlResult }],
+          content: [{ type: "text", text: formattedResult }],
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : JSON.stringify(error);
