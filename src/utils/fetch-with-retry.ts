@@ -4,7 +4,16 @@ import { Logger } from "./logger.js";
 
 const execAsync = promisify(exec);
 
-export async function fetchWithRetry<T>(url: string, options: RequestInit = {}): Promise<T> {
+type RequestOptions = RequestInit & {
+  /**
+   * Force format of headers to be a record of strings, e.g. { "Authorization": "Bearer 123" }
+   *
+   * Avoids complexity of needing to deal with `instanceof Headers`, which is not supported in some environments.
+   */
+  headers?: Record<string, string>;
+};
+
+export async function fetchWithRetry<T>(url: string, options: RequestOptions = {}): Promise<T> {
   try {
     const response = await fetch(url, options);
 
@@ -18,7 +27,11 @@ export async function fetchWithRetry<T>(url: string, options: RequestInit = {}):
     );
 
     const curlHeaders = formatHeadersForCurl(options.headers);
-    const curlCommand = `curl -s -L ${curlHeaders.join(" ")} "${url}"`;
+    // -s: Silent mode—no progress bar in stderr
+    // -S: Show errors in stderr
+    // --fail-with-body: curl errors with code 22, and outputs body of failed request, e.g. "Fetch failed with status 404"
+    // -L: Follow redirects
+    const curlCommand = `curl -s -S --fail-with-body -L ${curlHeaders.join(" ")} "${url}"`;
 
     try {
       // Fallback to curl for  corporate networks that have proxies that sometimes block fetch
@@ -60,25 +73,10 @@ export async function fetchWithRetry<T>(url: string, options: RequestInit = {}):
  * @param headers Headers to convert.
  * @returns Array of strings, each a curl -H argument.
  */
-function formatHeadersForCurl(headers: HeadersInit | undefined): string[] {
+function formatHeadersForCurl(headers: Record<string, string> | undefined): string[] {
   if (!headers) {
     return [];
   }
 
-  const curlHeaders: string[] = [];
-
-  if (headers instanceof Headers) {
-    headers.forEach((value, key) => {
-      curlHeaders.push(`-H "${key}: ${value}"`);
-    });
-  } else if (Array.isArray(headers)) {
-    headers.forEach(([key, value]) => {
-      curlHeaders.push(`-H "${key}: ${value}"`);
-    });
-  } else {
-    Object.entries(headers).forEach(([key, value]) => {
-      curlHeaders.push(`-H "${key}: ${value}"`);
-    });
-  }
-  return curlHeaders;
+  return Object.entries(headers).map(([key, value]) => `-H "${key}: ${value}"`);
 }
