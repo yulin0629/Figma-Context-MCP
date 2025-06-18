@@ -1,5 +1,11 @@
 # figma-developer-mcp
 
+## 0.4.3
+
+### Patch Changes
+
+- [#179](https://github.com/GLips/Figma-Context-MCP/pull/179) [`17988a0`](https://github.com/GLips/Figma-Context-MCP/commit/17988a0b5543330c6b8f7f24baa33b65a0da7957) Thanks [@GLips](https://github.com/GLips)! - Update curl command in fetchWithRetry to include error handling options, ensure errors are actually caught properly and returned to users.
+
 ## 0.4.2
 
 ### Patch Changes
