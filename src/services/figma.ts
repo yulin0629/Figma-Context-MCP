@@ -152,11 +152,19 @@ export class FigmaService {
 
   async getFile(fileKey: string, depth?: number | null): Promise<SimplifiedDesign> {
     try {
-      const endpoint = `/files/${fileKey}${depth ? `?depth=${depth}` : ""}`;
-      Logger.log(`Retrieving Figma file: ${fileKey} (depth: ${depth ?? "default"})`);
+      // Apply API depth optimization - give some buffer space for accurate client-side control
+      let apiDepth: number | undefined;
+      if (depth !== null && depth !== undefined) {
+        // API depth uses looser value to ensure we get enough data
+        // Precise depth control is handled by TypeScript
+        apiDepth = Math.min(depth + 2, 10);
+      }
+      
+      const endpoint = `/files/${fileKey}${apiDepth ? `?depth=${apiDepth}` : ""}`;
+      Logger.log(`Retrieving Figma file: ${fileKey} (API depth: ${apiDepth ?? "default"}, client depth: ${depth ?? "unlimited"})`);
       const response = await this.request<GetFileResponse>(endpoint);
       Logger.log("Got response");
-      const simplifiedResponse = parseFigmaResponse(response);
+      const simplifiedResponse = parseFigmaResponse(response, depth || undefined);
       writeLogs("figma-raw.yml", response);
       writeLogs("figma-simplified.yml", simplifiedResponse);
       return simplifiedResponse;
@@ -167,13 +175,32 @@ export class FigmaService {
   }
 
   async getNode(fileKey: string, nodeId: string, depth?: number | null): Promise<SimplifiedDesign> {
-    const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}${depth ? `&depth=${depth}` : ""}`;
+    // Apply API depth optimization - give some buffer space for accurate client-side control
+    let apiDepth: number | undefined;
+    if (depth !== null && depth !== undefined) {
+      // API depth uses looser value to ensure we get enough data
+      // Precise depth control is handled by TypeScript
+      apiDepth = Math.min(depth + 2, 10);
+    }
+    
+    const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}${apiDepth ? `&depth=${apiDepth}` : ""}`;
+    Logger.log(`Retrieving Figma node: ${nodeId} from ${fileKey} (API depth: ${apiDepth ?? "default"}, client depth: ${depth ?? "unlimited"})`);
     const response = await this.request<GetFileNodesResponse>(endpoint);
     Logger.log("Got response from getNode, now parsing.");
     writeLogs("figma-raw.yml", response);
-    const simplifiedResponse = parseFigmaResponse(response);
+    const simplifiedResponse = parseFigmaResponse(response, depth || undefined);
     writeLogs("figma-simplified.yml", simplifiedResponse);
     return simplifiedResponse;
+  }
+
+  async getRawData(fileKey: string, nodeId?: string): Promise<GetFileResponse | GetFileNodesResponse> {
+    if (nodeId) {
+      const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}`;
+      return await this.request<GetFileNodesResponse>(endpoint);
+    } else {
+      const endpoint = `/files/${fileKey}`;
+      return await this.request<GetFileResponse>(endpoint);
+    }
   }
 }
 

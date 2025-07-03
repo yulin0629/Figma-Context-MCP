@@ -207,6 +207,175 @@ function registerTools(
       }
     },
   );
+
+  // Tool to analyze depth distribution
+  server.tool(
+    "analyze_figma_depth",
+    "Analyze the depth distribution of a Figma file to help determine optimal depth limit",
+    {
+      fileKey: z
+        .string()
+        .describe(
+          "The key of the Figma file to analyze, often found in a provided URL like figma.com/(file|design)/<fileKey>/...",
+        ),
+      nodeId: z
+        .string()
+        .optional()
+        .describe(
+          "The ID of the specific node to analyze, often found as URL parameter node-id=<nodeId>",
+        ),
+    },
+    async ({ fileKey, nodeId }) => {
+      try {
+        Logger.log(
+          `Analyzing depth distribution for ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey}`,
+        );
+
+        // Get raw data to analyze
+        const rawData = await figmaService.getRawData(fileKey, nodeId);
+        
+        // Analyze depth distribution
+        const stats = analyzeDepthDistribution(rawData, nodeId);
+        
+        // Format analysis report
+        const report = formatDepthAnalysis(stats);
+        
+        Logger.log("Sending depth analysis report to client");
+        return {
+          content: [{ type: "text", text: report }],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : JSON.stringify(error);
+        Logger.error(`Error analyzing file ${fileKey}:`, message);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error analyzing file: ${message}` }],
+        };
+      }
+    },
+  );
+}
+
+// Helper types for depth analysis
+interface DepthStats {
+  maxDepth: number;
+  totalNodes: number;
+  depthCount: Record<number, number>;
+  depthNodes: Record<number, Array<{ name: string; type: string }>>;
+}
+
+// Analyze depth distribution
+function analyzeDepthDistribution(rawData: any, nodeId?: string): DepthStats {
+  const stats: DepthStats = {
+    maxDepth: 0,
+    totalNodes: 0,
+    depthCount: {},
+    depthNodes: {},
+  };
+
+  let documentNode: any;
+  if (nodeId && rawData.nodes) {
+    const nodeKey = Object.keys(rawData.nodes)[0];
+    documentNode = rawData.nodes[nodeKey]?.document;
+  } else {
+    documentNode = rawData.document;
+  }
+
+  if (documentNode) {
+    analyzeNode(documentNode, 0, stats);
+  }
+
+  return stats;
+}
+
+function analyzeNode(node: any, depth: number, stats: DepthStats): void {
+  if (!node || (node.visible !== undefined && !node.visible)) return;
+
+  // Update statistics
+  stats.totalNodes++;
+  stats.maxDepth = Math.max(stats.maxDepth, depth);
+
+  // Count nodes at this depth
+  if (!stats.depthCount[depth]) {
+    stats.depthCount[depth] = 0;
+    stats.depthNodes[depth] = [];
+  }
+  stats.depthCount[depth]++;
+
+  // Record example nodes (max 3)
+  if (stats.depthNodes[depth].length < 3) {
+    stats.depthNodes[depth].push({
+      name: node.name || 'Unnamed',
+      type: node.type || 'Unknown',
+    });
+  }
+
+  // Recursively process children
+  if (node.children && Array.isArray(node.children)) {
+    for (const child of node.children) {
+      analyzeNode(child, depth + 1, stats);
+    }
+  }
+}
+
+function formatDepthAnalysis(stats: DepthStats): string {
+  let report = '📊 深度分析結果:\n';
+  report += `   最大深度: ${stats.maxDepth}\n`;
+  report += `   總節點數: ${stats.totalNodes}\n\n`;
+  report += '   各深度節點分布:\n';
+
+  let cumulativePercent = 0;
+  const depths = Object.keys(stats.depthCount).map(Number).sort((a, b) => a - b);
+
+  for (const depth of depths) {
+    const count = stats.depthCount[depth];
+    const percent = (count / stats.totalNodes) * 100;
+    cumulativePercent += percent;
+    
+    report += `   深度 ${depth}: ${count.toString().padStart(4)} 個節點 (${percent.toFixed(1).padStart(5)}%) [累計: ${cumulativePercent.toFixed(1).padStart(5)}%]\n`;
+    
+    // Show example nodes
+    if (stats.depthNodes[depth].length > 0) {
+      for (const example of stats.depthNodes[depth].slice(0, 2)) {
+        const truncatedName = example.name.length > 30 ? example.name.substring(0, 30) + '...' : example.name;
+        report += `           例: ${example.type} - ${truncatedName}\n`;
+      }
+    }
+  }
+
+  report += '\n💡 建議:\n';
+  
+  // Provide recommendations based on distribution
+  if (stats.maxDepth <= 3) {
+    report += '   檔案結構較淺，不需要設定深度限制\n';
+  } else if (stats.maxDepth <= 5) {
+    report += '   建議深度限制: 3-4\n';
+  } else {
+    // Find depth containing 80% of nodes
+    const targetPercent = 80;
+    let cumulative = 0;
+    let suggestedDepth = 0;
+    
+    for (const depth of depths) {
+      cumulative += (stats.depthCount[depth] / stats.totalNodes) * 100;
+      if (cumulative >= targetPercent) {
+        suggestedDepth = depth;
+        break;
+      }
+    }
+    
+    report += `   建議深度限制: ${suggestedDepth} (包含 ${cumulative.toFixed(1)}% 的節點)\n`;
+    report += `   如需更多細節，可試試深度 ${suggestedDepth + 1} 或 ${suggestedDepth + 2}\n`;
+  }
+
+  // Performance optimization tips
+  if (stats.totalNodes > 1000) {
+    report += '\n   ⚡ 效能優化:\n';
+    report += `   由於節點數量較多（${stats.totalNodes} 個），建議使用深度參數減少 API 傳輸量\n`;
+    report += '   這會在 API 層級限制資料，加快下載速度\n';
+  }
+
+  return report;
 }
 
 export { createServer };

@@ -59,8 +59,17 @@ type StyleTypes =
   | SimplifiedStroke
   | SimplifiedEffects
   | string;
+interface TableCounter {
+  row_count: number;
+  rows_seen: Map<string, number>;
+}
+
 type GlobalVars = {
   styles: Record<StyleId, StyleTypes>;
+  lookup: Map<string, StyleId>;  // Fast lookup for existing styles
+  usageCount: Record<StyleId, number>;  // Track usage count for optimization
+  nodeSeenCount: Map<string, number>;  // Track duplicate nodes
+  tableCounters: Map<string, TableCounter>;  // Track table-specific counters
 };
 
 export interface SimplifiedDesign {
@@ -82,7 +91,7 @@ export interface ComponentProperties {
 export interface SimplifiedNode {
   id: string;
   name: string;
-  type: string; // e.g. FRAME, TEXT, INSTANCE, RECTANGLE, etc.
+  type: string; // e.g. FRAME, TEXT, INSTANCE, RECTANGLE, SUMMARY, etc.
   // geometry
   boundingBox?: BoundingBox;
   // text
@@ -136,8 +145,57 @@ export interface ColorValue {
   opacity: number;
 }
 
+/**
+ * Optimize styles by inlining low-usage styles
+ * @param nodes - Simplified nodes
+ * @param globalVars - Global variables containing styles and usage counts
+ * @returns Optimized nodes with inlined styles
+ */
+function optimizeStyles(nodes: SimplifiedNode[], globalVars: GlobalVars): SimplifiedNode[] {
+  const USAGE_THRESHOLD = 3;
+  
+  // Determine which styles to inline based on usage count
+  const stylesToInline = new Set<StyleId>();
+  Object.entries(globalVars.usageCount).forEach(([styleId, count]) => {
+    if (count < USAGE_THRESHOLD) {
+      stylesToInline.add(styleId as StyleId);
+    }
+  });
+  
+  // Recursively inline styles in nodes
+  function inlineStylesInNode(node: SimplifiedNode): SimplifiedNode {
+    const updatedNode = { ...node };
+    
+    // Check and inline each style property
+    const styleProperties: (keyof SimplifiedNode)[] = ['textStyle', 'fills', 'strokes', 'effects', 'layout'];
+    
+    styleProperties.forEach(prop => {
+      const styleId = updatedNode[prop] as string | undefined;
+      if (styleId && stylesToInline.has(styleId as StyleId)) {
+        // Inline the style value directly
+        const styleValue = globalVars.styles[styleId as StyleId];
+        (updatedNode as any)[prop] = styleValue;
+      }
+    });
+    
+    // Process children recursively
+    if (updatedNode.children) {
+      updatedNode.children = updatedNode.children.map(child => inlineStylesInNode(child));
+    }
+    
+    return updatedNode;
+  }
+  
+  // Clean up unused styles from globalVars
+  stylesToInline.forEach(styleId => {
+    delete globalVars.styles[styleId];
+  });
+  
+  return nodes.map(node => inlineStylesInNode(node));
+}
+
 // ---------------------- PARSING ----------------------
-export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse): SimplifiedDesign {
+export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse, maxDepth?: number): SimplifiedDesign {
   const aggregatedComponents: Record<string, Component> = {};
   const aggregatedComponentSets: Record<string, ComponentSet> = {};
   let nodesToParse: Array<FigmaDocumentNode>;
@@ -168,12 +226,19 @@ export function parseFigmaResponse(data: GetFileResponse | GetFileNodesResponse)
 
   let globalVars: GlobalVars = {
     styles: {},
+    lookup: new Map(),
+    usageCount: {},
+    nodeSeenCount: new Map(),
+    tableCounters: new Map(),
   };
 
-  const simplifiedNodes: SimplifiedNode[] = nodesToParse
+  let simplifiedNodes: SimplifiedNode[] = nodesToParse
     .filter(isVisible)
-    .map((n) => parseNode(globalVars, n))
+    .map((n) => parseNode(globalVars, n, undefined, 0, undefined, maxDepth))
     .filter((child) => child !== null && child !== undefined);
+
+  // Optimize styles by inlining low-usage ones
+  simplifiedNodes = optimizeStyles(simplifiedNodes, globalVars);
 
   const simplifiedDesign: SimplifiedDesign = {
     name,
@@ -214,27 +279,76 @@ const findNodeById = (id: string, nodes: SimplifiedNode[]): SimplifiedNode | und
  * @returns Variable ID
  */
 function findOrCreateVar(globalVars: GlobalVars, value: any, prefix: string): StyleId {
-  // Check if the same value already exists
-  const [existingVarId] =
-    Object.entries(globalVars.styles).find(
-      ([_, existingValue]) => JSON.stringify(existingValue) === JSON.stringify(value),
-    ) ?? [];
-
+  // Create stable string representation for lookup
+  const valueStr = JSON.stringify(value, Object.keys(value).sort());
+  
+  // Check if the same value already exists using fast lookup
+  const existingVarId = globalVars.lookup.get(valueStr);
+  
   if (existingVarId) {
-    return existingVarId as StyleId;
+    // Increment usage count
+    globalVars.usageCount[existingVarId] = (globalVars.usageCount[existingVarId] || 0) + 1;
+    return existingVarId;
   }
 
   // Create a new variable if it doesn't exist
   const varId = generateVarId(prefix);
   globalVars.styles[varId] = value;
+  globalVars.lookup.set(valueStr, varId);
+  globalVars.usageCount[varId] = 1;
   return varId;
+}
+
+/**
+ * Get signature of a node for deduplication
+ * @param node - The node to get signature from
+ * @returns A unique signature string
+ */
+function getNodeSignature(node: FigmaDocumentNode): string {
+  const textParts: string[] = [];
+  
+  // Recursively extract all text content
+  function extractTexts(n: FigmaDocumentNode) {
+    if (n.type === 'TEXT' && hasValue('characters', n)) {
+      const text = n.characters.trim();
+      if (text) {
+        textParts.push(text);
+      }
+    }
+    if (hasValue('children', n)) {
+      n.children.forEach(child => extractTexts(child));
+    }
+  }
+  
+  extractTexts(node);
+  
+  // Generate signature: if has text, use sorted text; otherwise use node structure
+  if (textParts.length > 0) {
+    return textParts.sort().join('_');
+  } else {
+    // Use node structure characteristics
+    return `empty_${node.type}_${node.name || 'unnamed'}`;
+  }
 }
 
 function parseNode(
   globalVars: GlobalVars,
   n: FigmaDocumentNode,
   parent?: FigmaDocumentNode,
+  depth: number = 0,
+  parentContext?: string,
+  maxDepth?: number,
 ): SimplifiedNode | null {
+  // Check if exceeds maximum depth limit
+  if (maxDepth !== undefined && depth > maxDepth) {
+    return {
+      id: `depth_limit_${n.id}`,
+      name: n.name,
+      type: 'DEPTH_LIMIT',
+      text: `（深度 ${depth} 超過限制，省略子節點）`
+    };
+  }
+
   const { id, name, type } = n;
 
   const simplified: SimplifiedNode = {
@@ -299,10 +413,36 @@ function parseNode(
     simplified.effects = findOrCreateVar(globalVars, effects, "effect");
   }
 
-  // Process layout
+  // Process layout with intelligent filtering
   const layout = buildSimplifiedLayout(n, parent);
   if (Object.keys(layout).length > 1) {
-    simplified.layout = findOrCreateVar(globalVars, layout, "layout");
+    // Filter to only important visual properties
+    const importantLayout: Partial<SimplifiedLayout> = {};
+    
+    // Keep only visual-related properties
+    if (layout.mode && layout.mode !== 'none') {
+      importantLayout.mode = layout.mode;
+    }
+    if (layout.justifyContent) {
+      importantLayout.justifyContent = layout.justifyContent;
+    }
+    if (layout.alignItems) {
+      importantLayout.alignItems = layout.alignItems;
+    }
+    if (layout.gap) {
+      importantLayout.gap = layout.gap;
+    }
+    if (layout.padding) {
+      importantLayout.padding = layout.padding;
+    }
+    if (layout.wrap) {
+      importantLayout.wrap = layout.wrap;
+    }
+    
+    // Only store if there are meaningful properties
+    if (Object.keys(importantLayout).length > 0 && importantLayout.mode !== 'none') {
+      simplified.layout = findOrCreateVar(globalVars, importantLayout, "layout");
+    }
   }
 
   // Keep other simple properties directly
@@ -324,13 +464,92 @@ function parseNode(
     simplified.borderRadius = `${n.rectangleCornerRadii[0]}px ${n.rectangleCornerRadii[1]}px ${n.rectangleCornerRadii[2]}px ${n.rectangleCornerRadii[3]}px`;
   }
 
+  // Identify container type
+  let containerType = parentContext;
+  if (name.includes('表格') && (name.includes('組件') || name.includes('元件'))) {
+    containerType = 'table_container';
+    // Create independent counter for this table container
+    const tableId = n.id;
+    if (!globalVars.tableCounters.has(tableId)) {
+      globalVars.tableCounters.set(tableId, {
+        row_count: 0,
+        rows_seen: new Map()
+      });
+    }
+  }
+
   // Recursively process child nodes.
   // Include children at the very end so all relevant configuration data for the element is output first and kept together for the AI.
   if (hasValue("children", n) && n.children.length > 0) {
-    const children = n.children
-      .filter(isVisible)
-      .map((child) => parseNode(globalVars, child, n))
-      .filter((child) => child !== null && child !== undefined);
+    const children: SimplifiedNode[] = [];
+    
+    // Get current table counter if in table container
+    let currentTableCounter: TableCounter | undefined;
+    if (containerType === 'table_container') {
+      const tableId = n.id;
+      currentTableCounter = globalVars.tableCounters.get(tableId);
+    }
+    
+    for (const child of n.children) {
+      if (!isVisible(child)) continue;
+      
+      const childName = child.name || '';
+      
+      // Skip useless intermediate layers
+      if (child.type === 'INSTANCE' && (childName.includes('表格元件') || childName.includes('表格群組'))) {
+        // Try to extract inner content directly
+        if (hasValue('children', child)) {
+          for (const grandchild of child.children) {
+            if (grandchild.type === 'TEXT') {
+              // Add text node directly
+              const simplified = parseNode(globalVars, grandchild, n, depth + 1, containerType, maxDepth);
+              if (simplified) {
+                children.push(simplified);
+              }
+              break;
+            }
+          }
+        }
+        continue;
+      }
+      
+      // Identify duplicate table rows
+      if (childName.includes('表格群組/表身') && currentTableCounter) {
+        const signature = getNodeSignature(child);
+        const rowsSeen = currentTableCounter.rows_seen;
+        
+        const seenCount = rowsSeen.get(signature) || 0;
+        if (seenCount > 0) {
+          rowsSeen.set(signature, seenCount + 1);
+          // Keep only first 3 examples
+          if (currentTableCounter.row_count >= 3) {
+            continue;
+          }
+        } else {
+          rowsSeen.set(signature, 1);
+          currentTableCounter.row_count++;
+        }
+      }
+      
+      const simplifiedChild = parseNode(globalVars, child, n, depth + 1, containerType, maxDepth);
+      if (simplifiedChild) {
+        children.push(simplifiedChild);
+      }
+    }
+    
+    // Add summary for omitted table rows
+    if (currentTableCounter && currentTableCounter.rows_seen.size > 0) {
+      const totalRows = Array.from(currentTableCounter.rows_seen.values()).reduce((sum, count) => sum + count, 0);
+      if (totalRows > 3) {
+        children.push({
+          id: 'summary_' + generateVarId('node'),
+          name: '表格行摘要',
+          type: 'SUMMARY',
+          text: `（省略了 ${totalRows - 3} 個重複的表格行）`
+        });
+      }
+    }
+    
     if (children.length) {
       simplified.children = children;
     }
