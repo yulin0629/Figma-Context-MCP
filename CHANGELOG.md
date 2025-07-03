@@ -1,5 +1,40 @@
 # figma-developer-mcp
 
+## 0.4.4
+
+### Major Changes
+
+- **Generalized Duplicate Detection**: Replaced hardcoded Chinese-specific logic with universal pattern detection that works with any Figma file, regardless of language or naming conventions
+- **Structure-based Table Detection**: Tables are now detected by analyzing repeating structural patterns rather than relying on specific node names
+- **Configurable Processing Options**: Added command-line flags for fine-tuning the simplification process:
+  - `--duplicate-threshold`: Control how many duplicate examples to keep (default: 3)
+  - `--no-table-detection`: Disable automatic table structure detection
+  - `--no-skip-intermediate`: Disable skipping of intermediate wrapper nodes
+
+### Minor Changes
+
+- **Smart Table Row Deduplication**: Automatically detects and removes duplicate content based on structural signatures, keeping only the first N examples (configurable) per table with independent counters
+- **Style Usage Optimization**: Tracks style usage count and automatically inlines styles used less than 3 times to reduce output size
+- **Intelligent Layout Filtering**: Filters layout properties to keep only visual-relevant ones (mode, justifyContent, alignItems, gap, padding), removing position/size data
+- **Depth Control Support**: Added `maxDepth` parameter to limit processing depth both at API and client level
+- **New Tool: analyze_figma_depth**: Analysis tool that shows node distribution at each depth level, provides smart recommendations for optimal depth settings, and includes file size and token count estimation
+- **API-level Depth Optimization**: When depth is specified, uses Figma API's depth parameter with buffer (depth + 2, max 10) for faster downloads
+- **Generic Intermediate Layer Skipping**: Automatically removes unnecessary single-child INSTANCE wrappers regardless of naming
+- **TypeScript Type Improvements**: Added proper types for TableCounter, DEPTH_LIMIT nodes, and improved GlobalVars structure
+
+### Performance Improvements
+
+- JSON output size reduction of 40-90% depending on file complexity
+- Faster downloads when using depth parameter due to API-level filtering
+- More efficient style lookup using Map instead of Object
+- Reduced memory usage by tracking and inlining low-usage styles
+
+### Bug Fixes
+
+- Fixed table row counting to be independent per table container
+- Fixed depth limit to work correctly with both files and nodes endpoints
+- Improved node signature generation for better deduplication accuracy
+
 ## 0.4.3
 
 ### Patch Changes

@@ -262,6 +262,8 @@ interface DepthStats {
   totalNodes: number;
   depthCount: Record<number, number>;
   depthNodes: Record<number, Array<{ name: string; type: string }>>;
+  depthCharCount: Record<number, number>;
+  totalChars: number;
 }
 
 // Analyze depth distribution
@@ -271,6 +273,8 @@ function analyzeDepthDistribution(rawData: any, nodeId?: string): DepthStats {
     totalNodes: 0,
     depthCount: {},
     depthNodes: {},
+    depthCharCount: {},
+    totalChars: 0,
   };
 
   let documentNode: any;
@@ -299,6 +303,7 @@ function analyzeNode(node: any, depth: number, stats: DepthStats): void {
   if (!stats.depthCount[depth]) {
     stats.depthCount[depth] = 0;
     stats.depthNodes[depth] = [];
+    stats.depthCharCount[depth] = 0;
   }
   stats.depthCount[depth]++;
 
@@ -309,6 +314,33 @@ function analyzeNode(node: any, depth: number, stats: DepthStats): void {
       type: node.type || 'Unknown',
     });
   }
+
+  // Calculate character count for size estimation
+  let nodeChars = 0;
+  // Basic node info
+  nodeChars += (node.id || '').length;
+  nodeChars += (node.name || '').length;
+  nodeChars += (node.type || '').length;
+  
+  // Text content
+  if (node.characters) {
+    nodeChars += node.characters.length;
+  }
+  
+  // Styles and properties (estimation)
+  if (node.style) {
+    nodeChars += 200; // Average style info length
+  }
+  if (node.fills && Array.isArray(node.fills)) {
+    nodeChars += 100 * node.fills.length;
+  }
+  if (node.effects && Array.isArray(node.effects)) {
+    nodeChars += 150 * node.effects.length;
+  }
+  
+  // Update character statistics
+  stats.depthCharCount[depth] += nodeChars;
+  stats.totalChars += nodeChars;
 
   // Recursively process children
   if (node.children && Array.isArray(node.children)) {
@@ -321,10 +353,21 @@ function analyzeNode(node: any, depth: number, stats: DepthStats): void {
 function formatDepthAnalysis(stats: DepthStats): string {
   let report = '📊 深度分析結果:\n';
   report += `   最大深度: ${stats.maxDepth}\n`;
-  report += `   總節點數: ${stats.totalNodes}\n\n`;
+  report += `   總節點數: ${stats.totalNodes}\n`;
+  
+  // Estimate size and tokens
+  const totalSizeKb = stats.totalChars / 1024;
+  // YAML format is about 1.2x original chars, simplified is about 0.8x
+  const yamlSizeEstimate = totalSizeKb * 1.2 * 0.8;
+  // Generally, 1 token ≈ 4 characters
+  const totalTokens = Math.floor(stats.totalChars / 4);
+  
+  report += `   預估大小: ~${yamlSizeEstimate.toFixed(1)} KB (YAML)\n`;
+  report += `   預估 tokens: ~${totalTokens.toLocaleString()} tokens\n\n`;
   report += '   各深度節點分布:\n';
 
   let cumulativePercent = 0;
+  let cumulativeChars = 0;
   const depths = Object.keys(stats.depthCount).map(Number).sort((a, b) => a - b);
 
   for (const depth of depths) {
@@ -332,7 +375,14 @@ function formatDepthAnalysis(stats: DepthStats): string {
     const percent = (count / stats.totalNodes) * 100;
     cumulativePercent += percent;
     
-    report += `   深度 ${depth}: ${count.toString().padStart(4)} 個節點 (${percent.toFixed(1).padStart(5)}%) [累計: ${cumulativePercent.toFixed(1).padStart(5)}%]\n`;
+    // Calculate cumulative chars and size
+    const depthChars = stats.depthCharCount[depth] || 0;
+    cumulativeChars += depthChars;
+    const cumulativeSizeKb = (cumulativeChars / 1024) * 1.2 * 0.8; // YAML estimate
+    const cumulativeTokens = Math.floor(cumulativeChars / 4);
+    
+    report += `   深度 ${depth}: ${count.toString().padStart(4)} 個節點 (${percent.toFixed(1).padStart(5)}%) [累計: ${cumulativePercent.toFixed(1).padStart(5)}%] ` +
+              `~${cumulativeSizeKb.toFixed(1)}KB/${cumulativeTokens.toLocaleString()}tokens\n`;
     
     // Show example nodes
     if (stats.depthNodes[depth].length > 0) {
@@ -364,7 +414,16 @@ function formatDepthAnalysis(stats: DepthStats): string {
       }
     }
     
+    // Calculate suggested depth size estimation
+    let suggestedChars = 0;
+    for (let d = 0; d <= suggestedDepth; d++) {
+      suggestedChars += stats.depthCharCount[d] || 0;
+    }
+    const suggestedSizeKb = (suggestedChars / 1024) * 1.2 * 0.8;
+    const suggestedTokens = Math.floor(suggestedChars / 4);
+    
     report += `   建議深度限制: ${suggestedDepth} (包含 ${cumulative.toFixed(1)}% 的節點)\n`;
+    report += `   預估輸出: ~${suggestedSizeKb.toFixed(1)} KB / ~${suggestedTokens.toLocaleString()} tokens\n`;
     report += `   如需更多細節，可試試深度 ${suggestedDepth + 1} 或 ${suggestedDepth + 2}\n`;
   }
 

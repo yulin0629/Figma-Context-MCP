@@ -37,6 +37,26 @@ When Cursor has access to Figma design data, it's **way** better at one-shotting
 
 <h3><a href="https://www.framelink.ai/docs/quickstart?utm_source=github&utm_medium=referral&utm_campaign=readme">See quickstart instructions →</a></h3>
 
+## ✨ Enhanced Version Features
+
+This enhanced version includes significant improvements for handling large Figma files:
+
+- **Universal Pattern Detection**: Works with any Figma file regardless of language or naming conventions - no more hardcoded logic!
+- **Smart Duplicate Removal**: Automatically detects and removes duplicate content based on structural patterns, keeping only the first N examples (configurable)
+- **Style Usage Optimization**: Tracks style usage and inlines styles used less than 3 times  
+- **Intelligent Layout Filtering**: Keeps only visual-relevant properties, removing position/size data
+- **Depth Control**: Limit processing depth to manage output size
+- **New Depth Analysis Tool**: `analyze_figma_depth` - Analyze your Figma file structure to determine optimal depth settings, with file size and token count estimation
+- **API-level Optimization**: Uses Figma API depth parameter for faster downloads
+- **Generic Layer Optimization**: Automatically removes unnecessary single-child wrapper nodes
+
+### New Configuration Options (Python version)
+- `--duplicate-threshold N`: Control how many duplicate examples to keep (default: 3)
+- `--no-table-detection`: Disable automatic table structure detection
+- `--no-skip-intermediate`: Disable skipping of intermediate wrapper nodes
+
+These optimizations can reduce JSON output size by **40-90%** while preserving all essential design information.
+
 ## Demo
 
 [Watch a demo of building a UI in Cursor with Figma design data](https://youtu.be/6G9yb-LrEqg)
@@ -69,7 +89,7 @@ The `figma-developer-mcp` server can be configured by adding the following to yo
   "mcpServers": {
     "Framelink Figma MCP": {
       "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
+      "args": ["-y", "@yulin0629/figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
     }
   }
 }
@@ -82,7 +102,7 @@ The `figma-developer-mcp` server can be configured by adding the following to yo
   "mcpServers": {
     "Framelink Figma MCP": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
+      "args": ["/c", "npx", "-y", "@yulin0629/figma-developer-mcp", "--figma-api-key=YOUR-KEY", "--stdio"]
     }
   }
 }

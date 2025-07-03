@@ -1,0 +1,51 @@
+# Source files
+src/
+*.ts
+!dist/*.d.ts
+
+# Config files
+tsconfig.json
+tsup.config.ts
+jest.config.js
+.eslintrc*
+.prettierrc*
+
+# Development files
+node_modules/
+.env
+.env.*
+*.log
+logs/
+
+# Test files
+test/
+tests/
+test-output/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Git and CI
+.git/
+.github/
+.gitignore
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Misc
+pnpm-lock.yaml
+yarn.lock
+CHANGELOG.md
+ROADMAP.md
+RELEASES.md
+figma-download.py
+figma-downloads/
+
+# Build artifacts that shouldn't be published
+*.tgz

@@ -1,7 +1,7 @@
 {
-  "name": "figma-developer-mcp",
-  "version": "0.4.3",
-  "description": "Model Context Protocol server for Figma integration",
+  "name": "@yulin0629/figma-developer-mcp",
+  "version": "0.4.4",
+  "description": "Enhanced Figma MCP server with advanced simplification and depth analysis",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -41,15 +41,18 @@
   "packageManager": "pnpm@10.10.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GLips/Figma-Context-MCP.git"
+    "url": "git+https://github.com/yulin0629/figma-developer-mcp.git"
   },
-  "homepage": "https://www.framelink.ai",
+  "homepage": "https://github.com/yulin0629/figma-developer-mcp",
   "keywords": [
     "figma",
     "mcp",
-    "typescript"
+    "typescript",
+    "model-context-protocol",
+    "cursor",
+    "ai-coding"
   ],
-  "author": "",
+  "author": "Waldo Zins <yulin0629@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@figma/rest-api-spec": "^0.24.0",

@@ -300,35 +300,67 @@ function findOrCreateVar(globalVars: GlobalVars, value: any, prefix: string): St
 }
 
 /**
- * Get signature of a node for deduplication
- * @param node - The node to get signature from
- * @returns A unique signature string
+ * Get structural signature of a node for pattern detection
+ * @param node - The node to analyze
+ * @returns A structural signature string
  */
-function getNodeSignature(node: FigmaDocumentNode): string {
-  const textParts: string[] = [];
+function getNodeStructureSignature(node: FigmaDocumentNode): string {
+  const structureParts: string[] = [];
   
-  // Recursively extract all text content
-  function extractTexts(n: FigmaDocumentNode) {
+  function collectStructure(n: FigmaDocumentNode, level: number = 0) {
+    if (level > 2) return; // Only check first few levels
+    
+    // Record node type
+    structureParts.push(`${level}:${n.type || 'UNKNOWN'}`);
+    
+    // Record children count and types
+    if (hasValue('children', n) && n.children.length > 0) {
+      const childTypes = n.children.map(c => c.type || 'UNKNOWN');
+      structureParts.push(`${level}:children=${n.children.length}`);
+      structureParts.push(`${level}:types=${Array.from(new Set(childTypes)).sort().join(',')}`);
+      
+      // Recursively process first few children
+      n.children.slice(0, 3).forEach(child => collectStructure(child, level + 1));
+    }
+  }
+  
+  collectStructure(node);
+  return structureParts.join('|');
+}
+
+/**
+ * Get content signature of a node for duplicate detection
+ * @param node - The node to get signature from
+ * @returns A content-based signature string
+ */
+function getContentSignature(node: FigmaDocumentNode): string {
+  const contentParts: string[] = [];
+  
+  function extractContent(n: FigmaDocumentNode) {
+    // Text content
     if (n.type === 'TEXT' && hasValue('characters', n)) {
       const text = n.characters.trim();
       if (text) {
-        textParts.push(text);
+        // Only take first 20 chars as feature
+        contentParts.push(text.substring(0, 20));
       }
     }
+    // Other node types represented by type and count
+    else if (n.type === 'FRAME' || n.type === 'GROUP' || n.type === 'INSTANCE') {
+      const childrenCount = hasValue('children', n) ? n.children.length : 0;
+      contentParts.push(`${n.type}[${childrenCount}]`);
+    }
+    
+    // Process first few children
     if (hasValue('children', n)) {
-      n.children.forEach(child => extractTexts(child));
+      n.children.slice(0, 5).forEach(child => extractContent(child));
     }
   }
   
-  extractTexts(node);
+  extractContent(node);
   
-  // Generate signature: if has text, use sorted text; otherwise use node structure
-  if (textParts.length > 0) {
-    return textParts.sort().join('_');
-  } else {
-    // Use node structure characteristics
-    return `empty_${node.type}_${node.name || 'unnamed'}`;
-  }
+  // Generate signature
+  return contentParts.length > 0 ? contentParts.join('|') : getNodeStructureSignature(node);
 }
 
 function parseNode(
@@ -464,17 +496,32 @@ function parseNode(
     simplified.borderRadius = `${n.rectangleCornerRadii[0]}px ${n.rectangleCornerRadii[1]}px ${n.rectangleCornerRadii[2]}px ${n.rectangleCornerRadii[3]}px`;
   }
 
-  // Identify container type
+  // Identify container type based on structure
   let containerType = parentContext;
-  if (name.includes('表格') && (name.includes('組件') || name.includes('元件'))) {
-    containerType = 'table_container';
-    // Create independent counter for this table container
-    const tableId = n.id;
-    if (!globalVars.tableCounters.has(tableId)) {
-      globalVars.tableCounters.set(tableId, {
-        row_count: 0,
-        rows_seen: new Map()
-      });
+  
+  // Generic table detection: check if there are repeating child structures
+  if (hasValue('children', n) && n.children.length > 3) {
+    // Check if children have similar structures (possibly table rows)
+    const childSignatures = new Map<string, number>();
+    
+    // Analyze first 10 children
+    n.children.slice(0, 10).forEach(child => {
+      const sig = getNodeStructureSignature(child);
+      childSignatures.set(sig, (childSignatures.get(sig) || 0) + 1);
+    });
+    
+    // If there are repeating structures, likely a table
+    const maxCount = Math.max(...Array.from(childSignatures.values()));
+    if (maxCount >= 3) {
+      containerType = 'table_container';
+      // Create independent counter for this table container
+      const tableId = n.id;
+      if (!globalVars.tableCounters.has(tableId)) {
+        globalVars.tableCounters.set(tableId, {
+          row_count: 0,
+          rows_seen: new Map()
+        });
+      }
     }
   }
 
@@ -495,27 +542,22 @@ function parseNode(
       
       const childName = child.name || '';
       
-      // Skip useless intermediate layers
-      if (child.type === 'INSTANCE' && (childName.includes('表格元件') || childName.includes('表格群組'))) {
-        // Try to extract inner content directly
-        if (hasValue('children', child)) {
-          for (const grandchild of child.children) {
-            if (grandchild.type === 'TEXT') {
-              // Add text node directly
-              const simplified = parseNode(globalVars, grandchild, n, depth + 1, containerType, maxDepth);
-              if (simplified) {
-                children.push(simplified);
-              }
-              break;
-            }
+      // Generic intermediate layer skipping logic
+      if (child.type === 'INSTANCE') {
+        // If INSTANCE has only one child, it might be unnecessary wrapper
+        if (hasValue('children', child) && child.children.length === 1) {
+          // Use the child directly
+          const simplified = parseNode(globalVars, child.children[0], n, depth + 1, containerType, maxDepth);
+          if (simplified) {
+            children.push(simplified);
           }
+          continue;
         }
-        continue;
       }
       
-      // Identify duplicate table rows
-      if (childName.includes('表格群組/表身') && currentTableCounter) {
-        const signature = getNodeSignature(child);
+      // In table containers, identify duplicate rows
+      if (containerType === 'table_container' && currentTableCounter) {
+        const signature = getContentSignature(child);
         const rowsSeen = currentTableCounter.rows_seen;
         
         const seenCount = rowsSeen.get(signature) || 0;
@@ -543,9 +585,9 @@ function parseNode(
       if (totalRows > 3) {
         children.push({
           id: 'summary_' + generateVarId('node'),
-          name: '表格行摘要',
+          name: 'Repetitive content summary',
           type: 'SUMMARY',
-          text: `（省略了 ${totalRows - 3} 個重複的表格行）`
+          text: `(Omitted ${totalRows - 3} similar items)`
         });
       }
     }
