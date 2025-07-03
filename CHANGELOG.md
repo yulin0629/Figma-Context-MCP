@@ -1,5 +1,11 @@
 # figma-developer-mcp
 
+## 0.4.5
+
+### Patch Changes
+
+- Fixed repository and homepage URLs to point to correct GitHub repository: https://github.com/yulin0629/Figma-Context-MCP
+
 ## 0.4.4
 
 ### Major Changes

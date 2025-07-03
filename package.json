@@ -1,6 +1,6 @@
 {
   "name": "@yulin0629/figma-developer-mcp",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Enhanced Figma MCP server with advanced simplification and depth analysis",
   "type": "module",
   "main": "dist/index.js",
@@ -41,9 +41,9 @@
   "packageManager": "pnpm@10.10.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yulin0629/figma-developer-mcp.git"
+    "url": "git+https://github.com/yulin0629/Figma-Context-MCP.git"
   },
-  "homepage": "https://github.com/yulin0629/figma-developer-mcp",
+  "homepage": "https://github.com/yulin0629/Figma-Context-MCP",
   "keywords": [
     "figma",
     "mcp",
